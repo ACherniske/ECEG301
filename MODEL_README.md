@@ -1,8 +1,8 @@
-# 🚗 Ride Acceptance Prediction Model
+# Ride Acceptance Prediction Model
 
 A JavaScript-based machine learning model that predicts the probability a user will accept a ride based on historical patterns, using logistic regression principles.
 
-## 📊 Features
+## Features
 
 The model considers multiple factors to predict ride acceptance:
 
@@ -20,7 +20,7 @@ The model considers multiple factors to predict ride acceptance:
 - **Preferred Distances**: Rides matching user's typical distance preferences
 - **Preferred Times**: Rides at user's preferred times of day
 
-## 🏗️ Model Architecture
+## Model Architecture
 
 The model uses **logistic regression** to calculate acceptance probability:
 
@@ -53,7 +53,7 @@ where z = β₀ + β₁×distance + β₂×userDistance + β₃×timeScore + β�
     └── User_Profile_Database.csv     # User profiles with acceptance rates
 ```
 
-## 🚀 How to Use
+## How to Use
 
 ### Option 1: Web Interface (Recommended)
 1. Open `rideAcceptanceDemo.html` in your web browser
@@ -83,21 +83,21 @@ const explanation = model.explainPrediction('U001', 'A001');
 console.log(explanation);
 ```
 
-## 📈 Sample Output
+## Sample Output
 
 ```
-👤 User U001
+ User U001
    Location: (40.81395, -76.34354)
    Historical Acceptance Rate: 81.0%
    
-🎯 Top 5 Ride Recommendations:
-   1. 🟢 Ride A001: 73.2% probability
+ Top 5 Ride Recommendations:
+   1. Ride A001: 73.2% probability
       Distance: 6.15 miles | Time: 13:15 | From User: 5.4 miles
-   2. 🟡 Ride A003: 68.9% probability
+   2.  Ride A003: 68.9% probability
       Distance: 9.36 miles | Time: 10:00 | From User: 7.2 miles
 ```
 
-## 🎯 Model Performance
+##  Model Performance
 
 The model provides interpretable predictions with:
 - **Probability scores** from 0-1 for each user-ride pair
@@ -110,7 +110,7 @@ The model provides interpretable predictions with:
 - **Moderate Accepters (40-70% historical)**: Average best prediction ~65%
 - **Low Accepters (<40% historical)**: Average best prediction ~45%
 
-## 🔧 Customization
+##  Customization
 
 ### Adjusting Model Coefficients
 Modify the `coefficients` object in `RideAcceptanceModel` constructor:
@@ -136,7 +136,7 @@ To improve accuracy, implement the `updateCoefficients()` method with:
 - Cross-validation
 - Performance metrics (accuracy, precision, recall, AUC)
 
-## 📊 Data Format
+##  Data Format
 
 ### Required CSV Structure
 
@@ -158,7 +158,7 @@ Ride ID,Origin Latitude,Origin Longitude,Destination Latitude,Destination Longit
 R0001,40.83091,-77.15878,41.35899,-77.0563,9.15,12:00,Saturday
 ```
 
-## 🧮 Technical Details
+##  Technical Details
 
 ### Distance Calculation
 Uses the Haversine formula for accurate geographic distance:
@@ -179,7 +179,7 @@ const distance = R * 2 * Math.atan2(√a, √(1-a))
 - **Saturday**: 0.6
 - **Sunday**: 0.5 (lowest demand)
 
-## 🔮 Future Enhancements
+##  Future Enhancements
 
 1. **Real Training Data**: Implement supervised learning with actual acceptance/rejection data
 2. **Advanced Features**: Weather, traffic conditions, surge pricing
@@ -188,10 +188,8 @@ const distance = R * 2 * Math.atan2(√a, √(1-a))
 5. **A/B Testing**: Compare model performance against baselines
 6. **Geographic Clustering**: Location-specific model variants
 
-## 📝 License
+## 📝License
 
 This project is for educational purposes. Feel free to modify and use for your ride-sharing analysis needs.
 
 ---
-
-**Built with ❤️ for ECEG301 App Development**
