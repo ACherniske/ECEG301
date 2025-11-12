@@ -40,7 +40,7 @@ where z = β₀ + β₁×distance + β₂×userDistance + β₃×timeScore + β�
 - **Distance from User**: -0.25 (farther rides penalized)
 - **Intercept**: -1.5 (baseline adjustment)
 
-## 📁 File Structure
+## File Structure
 
 ```
 ├── rideAcceptanceModel.js     # Core model implementation
@@ -188,7 +188,7 @@ const distance = R * 2 * Math.atan2(√a, √(1-a))
 5. **A/B Testing**: Compare model performance against baselines
 6. **Geographic Clustering**: Location-specific model variants
 
-## 📝License
+## License
 
 This project is for educational purposes. Feel free to modify and use for your ride-sharing analysis needs.
 
