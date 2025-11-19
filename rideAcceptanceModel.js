@@ -2,6 +2,7 @@
  * Ride Acceptance Prediction Model
  * Uses logistic regression to predict the probability a user will accept a ride
  * based on historical patterns, distance, time, and user behavior
+ * Written with the assistance of Claude Sonnet through github copilot
  */
 
 class RideAcceptanceModel {

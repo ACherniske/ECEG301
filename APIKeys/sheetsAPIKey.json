@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "team1-volunteer-rideshare",
+  "private_key_id": "d86f8dcbd637df8be8c0df219928db1489cdacd9",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvwIBADANBgkqhkiG9w0BAQEFAASCBKkwggSlAgEAAoIBAQDliUKUVyNT9TFp\nCnrDoutLTmOFfaOQrWuCZNmeVaxs/lFzLO5ti4QxzMIbo/fQT3oE2NCHGKPKeW9T\nM/xAgDcghLtXlH3MeLBMfct0yfWQHD0DNnl+f7lN0pWQwJU29oYVOdPfcV/SZ4+R\nFqLeZrFAPf2V0j5+bTtb13DKb8Rgpb41sxdfN4NjL1WqtiUk86opx0ik7xvxyYik\nllcCnNSGNiXhRh2Xav8vryq106jCT4esH2/TW+8Bi1iOc2ZpfElkEmuzrQR8clv0\n5iSXdWGT5BGjb2Tm1e1AjmuLlH4y4EJfe8I59d8pW5ue8IxDk8uu32KsX1YP1Mag\nZhat1KqHAgMBAAECggEAARMNj3/j/w8Swpj1WE5R//HHh1M0dgdetNhQ7bDOgwt7\nP1onabZReQQMqD7tKbmwlv035oKaZpfrihkWWc5Th2z6FzXvWDJK425PnmrK+ovd\nciuiffQrtxzs7RISUfc8N5euAtOXL4rKtdywpdzvqBUEqe8tY7XNVo8twr/mQoAB\n13ws3idwC6uaPayblUGF60rh66pazFK3kppXIk6WRDWdrt2bHq+WabSzLzP1smLb\nJ9/YtvIwkrzNaxytgt3BSFMckSxaOCqu0Vqco2cX3OplwzBqpg4aO06nTPxcNbjd\n1900HNWfrD7g5hdILKn1Q2odZ6nWzAHRLBGDUTKsAQKBgQD7lPxvi/bxVl3Wxkn1\nD4emNm4WudihE0gkAweaaKTFwJ2S+Ga4EjDU1nh6alrb4BFO5cAXWGKD/JYUtMai\nI+o8lSKdT6g3jrwrzukhprT9w6jN14hjAlTA/z2l9Vlc6icHtZeSbCW1bLi5eAwY\nP8o9c7gOxa8fiEooMup3rJCggQKBgQDpkSoqHjsj3qL3R3g74WbMUjKxt8LFaKrR\n8NgB5xrBt9QbHAy6hk5NuwNcqzDskCDyc8EydXgmdU12wyCQRWmc6xv/MjVSyUSE\nFOAhnMFCbQd5Kh202mCUnIAm8nAN1EdUPpYl4vW9370lYxUlfQAuFKS312ZDn++S\nlVo9exzHBwKBgQCOxpGwmGUvt40P236TZhncuV0m5pfLag7x6QpClgqU8+g5RWG+\nKwytbX34My2XRQVtmjO2zAE02H8wBxwHXoyLjzOSxWc5CHdAAXALGfnzXjwJfb04\nO1VwJiqNab0qXvSBiowXm+qWmLoI/9kVVfZng6m8MHJfWdCEGck426VEgQKBgQC4\nuGUHcGdHZBGwzaZKfWZmm2+aXAG/TJskdHzxbEwd/vvSAOoULpoJIal0BbQos4hL\nF78o3/yJNeZw0buUPkFbqBm5R4UilykH6Nal3qp9lWr+qY9a9AbEIc28f6qdVVCg\nUOtAxXGinCukQOt9fZHB3/OxrbokK342iMYYr6A/ywKBgQDnr1fyAO/IFWWEupNr\nO+xNf7VtIw5iita6x/5Xq3yQiA9zw1BbtmSzX6glghG0xZL/qPb2s3JJtsr5kxVh\nAqYnqNfxgCXgrvvrlqDeM1ZA1MSkeVH8rNHvKRzWbf4NnTwplVQ5MvkYckHdauSm\n1SEEIK4XV9LEh/vDthleA+dJAQ==\n-----END PRIVATE KEY-----\n",
+  "client_email": "team-1-volunteer-rideshare-she@team1-volunteer-rideshare.iam.gserviceaccount.com",
+  "client_id": "110489946521381760217",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/team-1-volunteer-rideshare-she%40team1-volunteer-rideshare.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
