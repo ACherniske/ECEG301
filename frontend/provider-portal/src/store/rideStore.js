@@ -1,5 +1,22 @@
 import { create } from 'zustand'
 
+// Helper function to check if date is today
+const isToday = (dateString) => {
+    if (!dateString) return false
+    
+    try {
+        const today = new Date()
+        const checkDate = new Date(dateString)
+        
+        return today.getDate() === checkDate.getDate() &&
+               today.getMonth() === checkDate.getMonth() &&
+               today.getFullYear() === checkDate.getFullYear()
+    } catch (error) {
+        console.error('Error parsing date:', dateString, error)
+        return false
+    }
+}
+
 export const useRideStore = create((set, get) => ({
     rides: [
         // Fallback data in case Google Sheets is unavailable
@@ -7,6 +24,7 @@ export const useRideStore = create((set, get) => ({
             id: 1,
             patientName: 'John Smith',
             patientId: 'P001',
+            appointmentDate: new Date().toISOString().split('T')[0], // Today's date
             pickupTime: '9:00 AM',
             appointmentTime: '9:30 AM',
             location: 'Downtown Medical Center',
@@ -16,15 +34,17 @@ export const useRideStore = create((set, get) => ({
             id: 2,
             patientName: 'Sarah Johnson',
             patientId: 'P002',
+            appointmentDate: new Date().toISOString().split('T')[0], // Today's date
             pickupTime: '11:00 AM',
             appointmentTime: '11:30 AM',
             location: 'City Hospital',
-            status: 'pending'
+            status: 'confirmed'
         },
         {
             id: 3,
             patientName: 'Mike Wilson',
             patientId: 'P003',
+            appointmentDate: new Date().toISOString().split('T')[0], // Today's date
             pickupTime: '2:00 PM',
             appointmentTime: '2:30 PM',
             location: 'Specialty Clinic',
@@ -42,7 +62,7 @@ export const useRideStore = create((set, get) => ({
         SHEET_ID: window.APP_CONFIG?.GOOGLE_SHEET_ID || 'fallback_id',
         API_KEY: window.APP_CONFIG?.GOOGLE_API_KEY || 'fallback_key',
         SHEET_NAME: window.APP_CONFIG?.SHEET_NAME || 'Rides',
-        RANGE: window.APP_CONFIG?.RANGE || 'A:G',
+        RANGE: window.APP_CONFIG?.RANGE || 'A:H',
     },
 
     // Fetch rides from Google Sheets
@@ -87,11 +107,11 @@ export const useRideStore = create((set, get) => ({
             // Skip header row (assuming first row has headers)
             const dataRows = rows.slice(1)
             
-            // Convert rows to ride objects
-            const rides = dataRows.map((row, index) => {
+            // Convert rows to ride objects with new column structure
+            const allRides = dataRows.map((row, index) => {
                 // Handle missing cells in row
                 const safeRow = [...row]
-                while (safeRow.length < 6) {
+                while (safeRow.length < 8) {
                     safeRow.push('')
                 }
                 
@@ -99,31 +119,56 @@ export const useRideStore = create((set, get) => ({
                     id: safeRow[0] || (index + 1).toString(),
                     patientName: safeRow[1] || '',
                     patientId: safeRow[2] || '',
-                    pickupTime: safeRow[3] || '',
-                    appointmentTime: safeRow[4] || '',
-                    location: safeRow[5] || '',
-                    status: safeRow[6] || 'pending'
+                    appointmentDate: safeRow[3] || '',
+                    pickupTime: safeRow[4] || '',
+                    appointmentTime: safeRow[5] || '',
+                    location: safeRow[6] || '',
+                    status: safeRow[7] || 'pending'
                 }
             }).filter(ride => ride.patientName) // Filter out empty rows
 
-            // Calculate statistics
-            const upcoming = rides.filter(ride => 
-                ride.status.toLowerCase() === 'confirmed' || 
-                ride.status.toLowerCase() === 'scheduled'
-            ).length
-            
-            const completed = rides.filter(ride => 
-                ride.status.toLowerCase() === 'completed'
-            ).length
-            
-            const pending = rides.filter(ride => 
-                ride.status.toLowerCase() === 'pending'
-            ).length
+            // Filter for today's confirmed rides only
+            const todaysConfirmedRides = allRides.filter(ride => {
+                const isConfirmed = ride.status.toLowerCase() === 'confirmed'
+                const isTodaysRide = isToday(ride.appointmentDate)
+                return isConfirmed && isTodaysRide
+            })
 
-            console.log('Processed rides:', rides)
+            // Limit to 3 rides maximum
+            const displayRides = todaysConfirmedRides.slice(0, 3)
+
+            console.log('All rides from sheet:', allRides.length)
+            console.log('Today\'s confirmed rides:', todaysConfirmedRides.length)
+            console.log('Displaying (max 3):', displayRides.length)
+            console.log('Processed rides:', displayRides)
+
+            // Calculate statistics from all rides (not just displayed ones)
+            const upcoming = allRides.filter(ride => {
+                const isConfirmedOrScheduled = ride.status.toLowerCase() === 'confirmed' || 
+                                             ride.status.toLowerCase() === 'scheduled'
+                const isTodaysRide = isToday(ride.appointmentDate)
+                return isConfirmedOrScheduled && isTodaysRide
+            }).length
+            
+            const completed = allRides.filter(ride => {
+                const isCompleted = ride.status.toLowerCase() === 'completed'
+                const isTodaysRide = isToday(ride.appointmentDate)
+                return isCompleted && isTodaysRide
+            }).length
+            
+            const pending = allRides.filter(ride => {
+                const isPending = ride.status.toLowerCase() === 'pending'
+                const isTodaysRide = isToday(ride.appointmentDate)
+                return isPending && isTodaysRide
+            }).length
+
+            console.log('Statistics calculation:')
+            console.log('- Upcoming (today only):', upcoming)
+            console.log('- Completed (today only):', completed)
+            console.log('- Pending (today only):', pending)
 
             set({
-                rides,
+                rides: displayRides, // Only today's confirmed rides (max 3)
                 upcomingCount: upcoming,
                 completedToday: completed,
                 pendingConfirmation: pending,
@@ -136,11 +181,20 @@ export const useRideStore = create((set, get) => ({
             
             // Fall back to local data on error
             const fallbackRides = get().rides
+            
+            // Filter fallback data for today's confirmed rides
+            const todaysConfirmed = fallbackRides.filter(ride => {
+                const isConfirmed = ride.status === 'confirmed'
+                const isTodaysRide = isToday(ride.appointmentDate)
+                return isConfirmed && isTodaysRide
+            }).slice(0, 3)
+
             const upcoming = fallbackRides.filter(ride => ride.status === 'confirmed').length
             const completed = fallbackRides.filter(ride => ride.status === 'completed').length
             const pending = fallbackRides.filter(ride => ride.status === 'pending').length
             
             set({
+                rides: todaysConfirmed,
                 upcomingCount: upcoming,
                 completedToday: completed,
                 pendingConfirmation: pending,
@@ -162,12 +216,22 @@ export const useRideStore = create((set, get) => ({
             const rideWithId = {
                 ...newRide,
                 id: newId.toString(),
+                appointmentDate: newRide.appointmentDate || new Date().toISOString().split('T')[0],
                 status: newRide.status || 'pending'
             }
 
-            // Add to local state
+            // Only add to displayed list if it's today's confirmed ride and we have less than 3
+            const currentRides = get().rides
+            let updatedRides = [...currentRides]
+
+            const isConfirmedToday = rideWithId.status === 'confirmed' && isToday(rideWithId.appointmentDate)
+            
+            if (isConfirmedToday && currentRides.length < 3) {
+                updatedRides.push(rideWithId)
+            }
+
             set((state) => ({
-                rides: [...state.rides, rideWithId],
+                rides: updatedRides,
                 isLoading: false
             }))
 
@@ -187,12 +251,20 @@ export const useRideStore = create((set, get) => ({
         const oldRides = get().rides
 
         try {
-            // Update local state
-            set((state) => ({
-                rides: state.rides.map((ride) =>
-                    ride.id === id ? { ...ride, status: newStatus } : ride
-                )
-            }))
+            // Update local state - remove from display if no longer confirmed
+            set((state) => {
+                const updatedRides = state.rides.map((ride) => {
+                    if (ride.id === id) {
+                        return { ...ride, status: newStatus }
+                    }
+                    return ride
+                }).filter(ride => {
+                    // Keep only today's confirmed rides
+                    return ride.status === 'confirmed' && isToday(ride.appointmentDate)
+                }).slice(0, 3) // Maintain max 3 limit
+
+                return { rides: updatedRides }
+            })
 
             // Recalculate stats
             get().recalculateStats()
