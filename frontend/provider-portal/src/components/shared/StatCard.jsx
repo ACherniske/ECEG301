@@ -1,8 +1,13 @@
-export const StatCard = ({ label, value, bgColor, textColor }) => {
-  return (
-    <div className={`${bgColor} p-6 rounded-lg border-2 border-opacity-30`}>
-      <div className="text-sm text-gray-600 mb-2">{label}</div>
-      <div className={`text-4xl font-bold ${textColor}`}>{value}</div>
-    </div>
-  )
+export const StatCard = ({ label, value, bgColor, textColor, borderColor, icon: Icon }) => {
+    return (
+        <div className={`${bgColor} p-6 rounded-lg border-2 ${borderColor}`}>
+            <div className="flex items-start justify-between mb-4">
+                <div>
+                    <div className={`text-sm font-medium mb-2 ${textColor}`}>{label}</div>
+                    <div className={`text-4xl font-bold ${textColor}`}>{value}</div>
+                </div>
+                {Icon && <Icon size={32} className={textColor} />}
+            </div>
+        </div>
+    )
 }

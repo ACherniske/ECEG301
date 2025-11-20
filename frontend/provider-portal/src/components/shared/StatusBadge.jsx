@@ -9,7 +9,7 @@ export const StatusBadge = ({ status }) => {
   const displayText = status.charAt(0).toUpperCase() + status.slice(1)
 
   return (
-    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusStyles[status] || statusStyles.pending}`}>
+    <span className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium ${statusStyles[status] || statusStyles.pending}`}>
       {displayText}
     </span>
   )
