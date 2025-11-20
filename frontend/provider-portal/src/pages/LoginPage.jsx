@@ -8,12 +8,12 @@ export default function LoginPage({ onLogin }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-blue-100">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-xl p-8">
+        <div className="bg-white rounded-lg border-2 border-gray-200 p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-600 rounded-lg mx-auto mb-4 flex items-center justify-center">
-              <span className="text-white font-bold text-3xl">M</span>
+              <span className="text-white font-bold text-3xl">P</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">MediRide</h1>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Provider Portal</h1>
             <p className="text-gray-600">Healthcare Transportation System</p>
           </div>
 
