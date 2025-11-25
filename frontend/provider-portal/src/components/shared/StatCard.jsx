@@ -1,6 +1,6 @@
 export const StatCard = ({ label, value, bgColor, textColor, borderColor, icon: Icon }) => {
     return (
-        <div className={`${bgColor} p-6 rounded-lg border-2 ${borderColor}`}>
+        <div className={`${bgColor} p-6 rounded-lg border-2 shadow-sm ${borderColor}`}>
             <div className="flex items-start justify-between mb-4">
                 <div>
                     <div className={`text-sm font-medium mb-2 ${textColor}`}>{label}</div>
