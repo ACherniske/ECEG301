@@ -15,7 +15,7 @@ import { useRideStore } from '../../store/rideStore'
 export default function OrgDashboardPage() {
   const { orgId } = useParams()
   const navigate = useNavigate()
-  const { organization } = useAuthStore()
+  const { user, organization } = useAuthStore()
   const { 
     rides, 
     upcomingCount, 
@@ -95,7 +95,7 @@ export default function OrgDashboardPage() {
         {/* Organization Header */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-1">{organization?.name}</h2>
-          <p className="text-gray-600">Role: {organization?.role || 'Member'}</p>
+          <p className="text-gray-600">Role: {user?.role || 'Member'}</p>
         </div>
 
         {/* Stats Cards */}
