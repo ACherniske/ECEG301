@@ -5,7 +5,7 @@ export const APPOINTMENTS_SHEET = process.env.APPOINTMENTS_SHEET || 'Appointment
 export const DRIVER_ACCOUNTS_SHEET = process.env.DRIVER_ACCOUNTS_SHEET || 'DriverAccounts'
 
 export const RANGES = {
-    RIDES: 'A:N',
+    RIDES: 'A:O',
     PATIENTS: 'A:G',
     APPOINTMENTS: 'A:H',
     DRIVERS: 'A:F'

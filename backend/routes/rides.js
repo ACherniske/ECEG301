@@ -22,7 +22,7 @@ router.get('/:orgId/rides', authenticateToken, async (req, res) => {
         const dataRows = rows.slice(1)
         const rides = dataRows.map((row, index) => {
             const safeRow = [...row]
-            while (safeRow.length < 14) safeRow.push('')
+            while (safeRow.length < 15) safeRow.push('') // Updated to 15 columns (A-O)
             
             return {
                 orgId: safeRow[0] || '',
@@ -31,14 +31,15 @@ router.get('/:orgId/rides', authenticateToken, async (req, res) => {
                 patientId: safeRow[3] || '',
                 appointmentDate: safeRow[4] || '',
                 pickupTime: safeRow[5] || '',
-                appointmentTime: safeRow[6] || '',
-                providerLocation: safeRow[7] || '',
-                status: safeRow[8] || 'pending',
-                notes: safeRow[9] || '',
-                pickupLocation: safeRow[10] || '',
-                driverName: safeRow[11] || '',
-                driverPlate: safeRow[12] || '',
-                driverCar: safeRow[13] || '',
+                roundTrip: safeRow[6] === 'true' || safeRow[6] === true || false,
+                appointmentTime: safeRow[7] || '',
+                providerLocation: safeRow[8] || '',
+                status: safeRow[9] || 'pending',
+                notes: safeRow[10] || '',
+                pickupLocation: safeRow[11] || '',
+                driverName: safeRow[12] || '',
+                driverPlate: safeRow[13] || '',
+                driverCar: safeRow[14] || '',
                 rowIndex: index + 2
             }
         }).filter(ride => ride.patientName && ride.orgId === orgId)
@@ -74,7 +75,7 @@ router.patch('/:orgId/rides/:rideId/status', authenticateToken, async (req, res)
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!I${rowIndex}`,
+            range: `${RIDES_SHEET}!J${rowIndex}`,
             valueInputOption: 'RAW',
             requestBody: { values: [[status]] }
         })
@@ -91,14 +92,25 @@ router.patch('/:orgId/rides/:rideId/status', authenticateToken, async (req, res)
 router.patch('/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
     try {
         const { orgId, rideId } = req.params
-        const { pickupTime, appointmentTime, providerLocation, notes, pickupLocation, driverName, driverPlate, driverCar, rowIndex } = req.body
+        const { 
+            pickupTime, 
+            roundTrip,
+            appointmentTime, 
+            providerLocation, 
+            notes, 
+            pickupLocation, 
+            driverName, 
+            driverPlate, 
+            driverCar, 
+            rowIndex 
+        } = req.body
         
         if (!rowIndex) return res.status(400).json({ error: 'Row index is required' })
 
         const sheets = getSheets()
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!A${rowIndex}:N${rowIndex}`,
+            range: `${RIDES_SHEET}!A${rowIndex}:O${rowIndex}`,
         })
 
         const rideRow = response.data.values?.[0]
@@ -109,20 +121,28 @@ router.patch('/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
         const updates = []
         const fieldMappings = [
             { field: 'pickupTime', column: 'F' },
-            { field: 'appointmentTime', column: 'G' },
-            { field: 'providerLocation', column: 'H' },
-            { field: 'notes', column: 'J' },
-            { field: 'pickupLocation', column: 'K' },
-            { field: 'driverName', column: 'L' },
-            { field: 'driverPlate', column: 'M' },
-            { field: 'driverCar', column: 'N' }
+            { field: 'roundTrip', column: 'G' },
+            { field: 'appointmentTime', column: 'H' },
+            { field: 'providerLocation', column: 'I' },
+            { field: 'notes', column: 'K' },
+            { field: 'pickupLocation', column: 'L' },
+            { field: 'driverName', column: 'M' },
+            { field: 'driverPlate', column: 'N' },
+            { field: 'driverCar', column: 'O' }
         ]
 
         fieldMappings.forEach(({ field, column }) => {
             if (req.body[field] !== undefined) {
+                let value = req.body[field]
+                
+                // Handle boolean conversion for roundTrip
+                if (field === 'roundTrip') {
+                    value = value === true || value === 'true' ? 'true' : 'false'
+                }
+                
                 updates.push({
                     range: `${RIDES_SHEET}!${column}${rowIndex}`,
-                    values: [[req.body[field]]]
+                    values: [[value]]
                 })
             }
         })
@@ -169,20 +189,21 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
         }
 
         const values = [
-            orgId,
-            ride.id,
-            ride.patientName,
-            ride.patientId,
-            ride.appointmentDate || new Date().toISOString().split('T')[0],
-            ride.pickupTime || '',
-            ride.appointmentTime || '',
-            ride.providerLocation || ride.appointmentLocation || '',
-            ride.status || 'pending',
-            ride.notes || '',
-            ride.pickupLocation || '',
-            ride.driverName || '',
-            ride.driverPlate || '',
-            ride.driverCar || ''
+            orgId, // A
+            ride.id, // B
+            ride.patientName, // C
+            ride.patientId, // D
+            ride.appointmentDate || new Date().toISOString().split('T')[0], // E
+            ride.pickupTime || '', // F
+            ride.roundTrip === true || ride.roundTrip === 'true' ? 'true' : 'false', // G
+            ride.appointmentTime || '', // H
+            ride.providerLocation || ride.appointmentLocation || '', // I
+            ride.status || 'pending', // J
+            ride.notes || '', // K
+            ride.pickupLocation || '', // L
+            ride.driverName || '', // M
+            ride.driverPlate || '', // N
+            ride.driverCar || '' // O
         ]
 
         await sheets.spreadsheets.values.append({
