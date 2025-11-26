@@ -28,11 +28,8 @@ export default function OrgScheduleRidePage() {
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [formData, setFormData] = useState({
     pickupLocation: '',
-    pickupTimeOffset: 30,
-    transportationType: 'standard',
-    specialRequirements: '',
+    notes: '', // Changed from specialRequirements to notes
     roundTrip: false,
-    returnPickupOffset: 30,
   })
 
   const handlePatientSelected = (patient) => {
@@ -41,7 +38,7 @@ export default function OrgScheduleRidePage() {
     setSelectedAppointment(null)
     setFormData({
       pickupLocation: '',
-      specialRequirements: '',
+      notes: '', // Changed from specialRequirements
       roundTrip: false,
     })
     setCurrentStep(2)
@@ -53,7 +50,7 @@ export default function OrgScheduleRidePage() {
     setFormData(prev => ({
       ...prev,
       pickupLocation: '',
-      specialRequirements: '',
+      notes: '', // Changed from specialRequirements
       roundTrip: false,
     }))
     setCurrentStep(3)
@@ -88,9 +85,8 @@ export default function OrgScheduleRidePage() {
         pickupLocation: formData.pickupLocation,
         appointmentType: selectedAppointment.appointmentType,
         providerName: selectedAppointment.providerName,
-        specialRequirements: formData.specialRequirements,
+        notes: formData.notes, // Use notes instead of specialRequirements
         roundTrip: formData.roundTrip,
-        notes: formData.specialRequirements, // Map special requirements to notes
       }
 
       const response = await rideService.scheduleRide(orgId, rideData)
@@ -115,7 +111,7 @@ export default function OrgScheduleRidePage() {
       pickupLocation: '',
       pickupTimeOffset: 30,
       transportationType: 'standard',
-      specialRequirements: '',
+      notes: '', // Changed from specialRequirements to notes
       roundTrip: false,
       returnPickupOffset: 30,
     })
@@ -228,7 +224,7 @@ export default function OrgScheduleRidePage() {
                     // Going back from step 3 to 2, clear transportation details
                     setFormData({
                       pickupLocation: '',
-                      specialRequirements: '',
+                      notes: '', // Changed from specialRequirements
                       roundTrip: false,
                     })
                   } else if (currentStep === 2) {
@@ -236,7 +232,7 @@ export default function OrgScheduleRidePage() {
                     setSelectedAppointment(null)
                     setFormData({
                       pickupLocation: '',
-                      specialRequirements: '',
+                      notes: '', // Changed from specialRequirements
                       roundTrip: false,
                     })
                   }

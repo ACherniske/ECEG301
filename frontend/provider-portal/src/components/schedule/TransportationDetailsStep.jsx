@@ -53,6 +53,11 @@ export const TransportationDetailsStep = ({ formData, setFormData, error, organi
     }
   }
 
+  const handleNotesChange = (e) => {
+    const value = e.target.value
+    setFormData({...formData, notes: value})
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -98,15 +103,15 @@ export const TransportationDetailsStep = ({ formData, setFormData, error, organi
         )}
       </div>
 
-      {/* Special Requirements */}
+      {/* Special Requirements/Notes */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Special Requirements (Optional)
+          Special Requirements & Notes (Optional)
         </label>
         <textarea
-          value={formData.specialRequirements || ''}
-          onChange={(e) => setFormData({...formData, specialRequirements: e.target.value})}
-          placeholder="e.g., Oxygen required, mobility assistance needed, allergies, dietary restrictions, etc."
+          value={formData.notes || formData.specialRequirements || ''}
+          onChange={handleNotesChange}
+          placeholder="e.g., Oxygen required, mobility assistance needed, allergies, dietary restrictions, special instructions..."
           className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           rows={4}
         />
