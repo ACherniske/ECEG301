@@ -6,10 +6,15 @@ export const rideService = {
     try {
       const rideWithDefaults = {
         ...rideData,
-        status: 'Pending',
+        status: 'pending',
         pickupTime: '', // Empty until calculated by driver/system
         appointmentTime: rideData.appointmentTime, // Imported appointment time
-        notes: rideData.notes || '', // Include notes field, default to empty string
+        notes: rideData.notes || '', // Include notes field
+        pickupLocation: rideData.pickupLocation || '',
+        driverName: rideData.driverName || '',
+        driverPlate: rideData.driverPlate || '',
+        driverCar: rideData.driverCar || '',
+        providerLocation: rideData.providerLocation || rideData.appointmentLocation || ''
       }
       
       const response = await api.post(`/org/${organizationId}/rides`, rideWithDefaults)
@@ -57,7 +62,7 @@ export const rideService = {
     }
   },
 
-  // Update ride details
+  // Update ride details (supports all new fields)
   updateRide: async (organizationId, rideId, updates) => {
     try {
       const response = await api.patch(
@@ -70,16 +75,20 @@ export const rideService = {
     }
   },
 
-  // Update ride notes specifically
-  updateRideNotes: async (organizationId, rideId, notes, rowIndex) => {
+  // Update multiple ride fields at once
+  updateRideFields: async (organizationId, rideId, fields, rowIndex) => {
     try {
+      const updateData = { 
+        ...fields, 
+        rowIndex 
+      }
       const response = await api.patch(
         `/org/${organizationId}/rides/${rideId}`,
-        { notes, rowIndex }
+        updateData
       )
       return response.data
     } catch (error) {
-      throw error.response?.data?.error || 'Failed to update ride notes'
+      throw error.response?.data?.error || 'Failed to update ride fields'
     }
   },
 
@@ -94,19 +103,5 @@ export const rideService = {
     } catch (error) {
       throw error.response?.data?.error || 'Failed to delete ride'
     }
-  },
-
-  // Update multiple ride fields at once (pickupTime, appointmentTime, location, notes)
-  updateRideFields: async (organizationId, rideId, fields, rowIndex) => {
-    try {
-      const updateData = { ...fields, rowIndex }
-      const response = await api.patch(
-        `/org/${organizationId}/rides/${rideId}`,
-        updateData
-      )
-      return response.data
-    } catch (error) {
-      throw error.response?.data?.error || 'Failed to update ride fields'
-    }
-  },
+  }
 }
