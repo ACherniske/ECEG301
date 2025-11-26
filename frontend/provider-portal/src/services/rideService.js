@@ -14,7 +14,8 @@ export const rideService = {
         driverName: rideData.driverName || '',
         driverPlate: rideData.driverPlate || '',
         driverCar: rideData.driverCar || '',
-        providerLocation: rideData.providerLocation || rideData.appointmentLocation || ''
+        providerLocation: rideData.providerLocation || rideData.appointmentLocation || '',
+        roundTrip: rideData.roundTrip === true || rideData.roundTrip === 'true'
       }
       
       const response = await api.post(`/org/${organizationId}/rides`, rideWithDefaults)

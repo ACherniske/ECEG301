@@ -58,6 +58,11 @@ export const TransportationDetailsStep = ({ formData, setFormData, error, organi
     setFormData({...formData, notes: value})
   }
 
+  const handleRoundTripChange = (e) => {
+    const checked = e.target.checked
+    setFormData({...formData, roundTrip: checked})
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -109,7 +114,7 @@ export const TransportationDetailsStep = ({ formData, setFormData, error, organi
           Special Requirements & Notes (Optional)
         </label>
         <textarea
-          value={formData.notes || formData.specialRequirements || ''}
+          value={formData.notes || ''}
           onChange={handleNotesChange}
           placeholder="e.g., Oxygen required, mobility assistance needed, allergies, dietary restrictions, special instructions..."
           className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
@@ -122,14 +127,19 @@ export const TransportationDetailsStep = ({ formData, setFormData, error, organi
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
-            checked={formData.roundTrip || false}
-            onChange={(e) => setFormData({...formData, roundTrip: e.target.checked})}
+            checked={formData.roundTrip === true}
+            onChange={handleRoundTripChange}
             className="w-5 h-5 rounded cursor-pointer"
           />
           <span className="text-gray-700 font-medium">
             Round trip (return ride after appointment)
           </span>
         </label>
+        {formData.roundTrip && (
+          <p className="mt-2 text-sm text-gray-600 ml-8">
+            A return ride will be scheduled after the appointment is completed.
+          </p>
+        )}
       </div>
     </div>
   )
