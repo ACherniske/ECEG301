@@ -1,0 +1,278 @@
+# Provider Portal Backend API
+
+A Node.js/Express backend API that integrates with Google Sheets to manage healthcare transportation rides, patient data, and appointments.
+
+## 🏗️ Architecture
+
+- **Framework**: Express.js with ES6 modules
+- **Database**: Google Sheets (via Google Sheets API)
+- **Authentication**: JWT-based (development mode available)
+- **Deployment**: Docker containerized
+
+## 📁 Project Structure
+
+```
+backend/
+├── server/
+│   ├── .env                    # Environment variables
+│   ├── Dockerfile             # Docker container configuration
+│   ├── package.json           # Node.js dependencies
+│   ├── server.js              # Main application entry point
+│   └── ServiceAccount.json    # Google Service Account credentials
+└── README                     # This file
+```
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 20 or higher
+- Google Cloud Service Account with Sheets API access
+- Google Sheets document with proper structure
+
+### Environment Setup
+
+Create a `.env` file with:
+```env
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+FRONTEND_URL=http://localhost:5173
+
+# Google Sheets Integration
+GOOGLE_SHEET_ID=your_google_sheet_id
+RIDES_SHEET=Rides
+GOOGLE_SERVICE_ACCOUNT_KEY={"type":"service_account",...}
+```
+
+### Installation & Running
+
+```bash
+# Install dependencies
+npm install
+
+# Development mode (with nodemon)
+npm run dev
+
+# Production mode
+npm start
+```
+
+### Docker Deployment
+
+```bash
+# Build image
+docker build -t provider-backend .
+
+# Run container
+docker run -p 3000:3000 --env-file .env provider-backend
+```
+
+## 📊 Google Sheets Structure
+
+The API expects these sheets with specific column structures:
+
+### Rides Sheet (Columns A-J)
+| Column | Field | Description |
+|--------|-------|-------------|
+| A | OrgId | Organization identifier |
+| B | ID | Ride unique identifier |
+| C | PatientName | Patient full name |
+| D | PatientId | Patient identifier |
+| E | AppointmentDate | Date of appointment (YYYY-MM-DD) |
+| F | PickupTime | Scheduled pickup time |
+| G | AppointmentTime | Appointment time |
+| H | Location | Appointment location |
+| I | Status | Ride status (pending/confirmed/completed/cancelled) |
+| J | Notes | Special requirements and notes |
+
+### Patients Sheet (Columns A-G)
+| Column | Field | Description |
+|--------|-------|-------------|
+| A | OrgId | Organization identifier |
+| B | PatientId | Patient unique identifier |
+| C | FirstName | Patient first name |
+| D | LastName | Patient last name |
+| E | DateOfBirth | Patient DOB |
+| F | Phone | Contact phone number |
+| G | Address | Patient home address |
+
+### Appointments Sheet (Columns A-H)
+| Column | Field | Description |
+|--------|-------|-------------|
+| A | OrgId | Organization identifier |
+| B | PatientId | Patient identifier |
+| C | AppointmentId | Appointment unique identifier |
+| D | AppointmentType | Type of appointment |
+| E | Date | Appointment date |
+| F | Time | Appointment time |
+| G | Location | Appointment location |
+| H | ProviderName | Healthcare provider name |
+
+### DriverAccounts Sheet (Columns A-F)
+| Column | Field | Description |
+|--------|-------|-------------|
+| A | OrgId | Organization identifier |
+| B | DriverId | Driver unique identifier |
+| C | Name | Driver full name |
+| D | Make | Vehicle make |
+| E | Model | Vehicle model |
+| F | LicensePlate | Vehicle license plate |
+
+## 🛠️ API Endpoints
+
+### Health Check
+- **GET** `/health` - Server health status
+
+### Ride Management
+- **GET** `/api/org/:orgId/rides` - Get all rides for organization
+- **POST** `/api/org/:orgId/rides` - Create new ride
+- **PATCH** `/api/org/:orgId/rides/:rideId/status` - Update ride status
+- **PATCH** `/api/org/:orgId/rides/:rideId` - Update ride fields (pickup time, location, notes)
+
+### Patient Management (EHR Integration)
+- **GET** `/api/org/:orgId/ehr/patients/search?query=:searchTerm` - Search patients
+- **GET** `/api/org/:orgId/ehr/patients/:patientId` - Get patient details
+- **GET** `/api/org/:orgId/ehr/patients/:patientId/appointments` - Get patient appointments
+
+### Driver Management
+- **GET** `/api/org/:orgId/drivers` - Get driver accounts
+
+### User & Organization Management (Placeholder)
+- **GET** `/api/org/:orgId/invitations` - Get invitations
+- **POST** `/api/org/:orgId/invitations` - Create invitation
+- **DELETE** `/api/org/:orgId/invitations/:invitationId` - Delete invitation
+- **GET** `/api/org/:orgId/users` - Get organization users
+- **DELETE** `/api/org/:orgId/users/:userId` - Remove user
+
+## 📝 API Documentation
+
+### Authentication
+All API endpoints (except `/health`) require authentication via Bearer token:
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+### Example Requests
+
+#### Create New Ride
+```bash
+POST /api/org/org123/rides
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "patientName": "John Doe",
+  "patientId": "P123",
+  "appointmentDate": "2024-01-15",
+  "appointmentTime": "10:00 AM",
+  "location": "Main Hospital",
+  "notes": "Wheelchair assistance required"
+}
+```
+
+#### Search Patients
+```bash
+GET /api/org/org123/ehr/patients/search?query=John
+Authorization: Bearer <token>
+```
+
+#### Update Ride Status
+```bash
+PATCH /api/org/org123/rides/R001/status
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "status": "confirmed",
+  "rowIndex": 5
+}
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | 3000 |
+| `NODE_ENV` | Environment mode | development |
+| `FRONTEND_URL` | CORS allowed origin | http://localhost:5173 |
+| `GOOGLE_SHEET_ID` | Google Sheets document ID | Required |
+| `RIDES_SHEET` | Rides sheet name | Rides |
+| `GOOGLE_SERVICE_ACCOUNT_KEY` | Service account JSON | Required |
+
+### CORS Configuration
+The server allows cross-origin requests from the configured frontend URL with credentials support.
+
+## 🚨 Error Handling
+
+The API returns standardized error responses:
+
+```json
+{
+  "error": "Error message",
+  "message": "Detailed error (development only)"
+}
+```
+
+Common HTTP status codes:
+- `200` - Success
+- `201` - Created
+- `400` - Bad Request
+- `401` - Unauthorized
+- `403` - Forbidden
+- `404` - Not Found
+- `500` - Internal Server Error
+
+## 🔒 Security Notes
+
+- JWT authentication is bypassed in development mode
+- Service account credentials should be stored securely
+- Production deployments should implement proper token validation
+- CORS is configured for specific frontend domains
+
+## 🐳 Docker Support
+
+The included Dockerfile provides:
+- Node.js 20 Alpine base image
+- Health check endpoint monitoring
+- Production-optimized dependency installation
+- Automatic container restart capabilities
+
+Health check command:
+```bash
+curl http://localhost:3000/health
+```
+
+## 🤝 Contributing
+
+1. Ensure all environment variables are properly configured
+2. Follow ES6 module syntax
+3. Add proper error handling for new endpoints
+4. Update this documentation for any API changes
+
+## 📋 TODO
+
+- [ ] Implement proper JWT token verification
+- [ ] Add user management endpoints
+- [ ] Add invitation system
+- [ ] Implement data validation schemas
+- [ ] Add request rate limiting
+- [ ] Add comprehensive logging
+- [ ] Add unit tests
+
+## 🐛 Troubleshooting
+
+### Google Sheets Connection Issues
+- Verify `GOOGLE_SERVICE_ACCOUNT_KEY` is valid JSON
+- Ensure service account has edit access to the Google Sheet
+- Check that `GOOGLE_SHEET_ID` matches your document
+
+### Authentication Problems
+- In development, authentication is bypassed
+- In production, ensure proper JWT tokens are provided
+- Verify `NODE_ENV` is set correctly
+
+### Sheet Structure Errors
+- Ensure all required sheets exist with proper column headers
+- Verify column ordering matches the documented structure
+- Check that data types are consistent
