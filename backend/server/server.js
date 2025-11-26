@@ -365,6 +365,159 @@ app.delete('/api/org/:orgId/users/:userId', authenticateToken, async (req, res) 
     res.json({ success: true })
 })
 
+// GET /api/org/:orgId/ehr/patients/search - Search patients
+app.get('/api/org/:orgId/ehr/patients/search', authenticateToken, async (req, res) => {
+    try {
+        const { orgId } = req.params
+        const { query } = req.query
+
+        if (!query || query.trim().length === 0) {
+            return res.status(400).json({ error: 'Search query is required' })
+        }
+
+        // Fetch all patients from Patients sheet
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${PATIENTS_SHEET}!A:G`,
+        })
+
+        const rows = response.data.values || []
+        
+        if (rows.length === 0) {
+            return res.json([])
+        }
+
+        // Skip header row
+        const dataRows = rows.slice(1)
+        
+        // Search by patient name, ID, or phone
+        const searchLower = query.toLowerCase()
+        const results = dataRows
+            .filter(row => {
+                // Check if belongs to this org
+                if (row[0] !== orgId) return false
+                
+                const firstName = row[2]?.toLowerCase() || ''
+                const lastName = row[3]?.toLowerCase() || ''
+                const patientId = row[1]?.toLowerCase() || ''
+                const phone = row[5]?.toLowerCase() || ''
+                
+                return firstName.includes(searchLower) ||
+                       lastName.includes(searchLower) ||
+                       patientId.includes(searchLower) ||
+                       phone.includes(searchLower)
+            })
+            .map((row, index) => {
+                const safeRow = [...row]
+                while (safeRow.length < 7) {
+                    safeRow.push('')
+                }
+                
+                return {
+                    id: safeRow[1],
+                    firstName: safeRow[2],
+                    lastName: safeRow[3],
+                    dateOfBirth: safeRow[4],
+                    phone: safeRow[5],
+                    address: safeRow[6],
+                    rowIndex: index + 2
+                }
+            })
+
+        console.log(`Found ${results.length} patients for query: ${query}`)
+        res.json(results)
+    } catch (error) {
+        console.error('Error searching patients:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// GET /api/org/:orgId/ehr/patients/:patientId - Get patient details
+app.get('/api/org/:orgId/ehr/patients/:patientId', authenticateToken, async (req, res) => {
+    try {
+        const { orgId, patientId } = req.params
+
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${PATIENTS_SHEET}!A:G`,
+        })
+
+        const rows = response.data.values || []
+        
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Patient not found' })
+        }
+
+        // Find patient in the sheet
+        const patientRow = rows.slice(1).find(row => row[0] === orgId && row[1] === patientId)
+        
+        if (!patientRow) {
+            return res.status(404).json({ error: 'Patient not found' })
+        }
+
+        const patient = {
+            id: patientRow[1],
+            firstName: patientRow[2],
+            lastName: patientRow[3],
+            dateOfBirth: patientRow[4],
+            phone: patientRow[5],
+            address: patientRow[6]
+        }
+
+        console.log(`Fetched patient ${patientId} for org ${orgId}`)
+        res.json(patient)
+    } catch (error) {
+        console.error('Error fetching patient:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// GET /api/org/:orgId/ehr/patients/:patientId/appointments - Get patient appointments
+app.get('/api/org/:orgId/ehr/patients/:patientId/appointments', authenticateToken, async (req, res) => {
+    try {
+        const { orgId, patientId } = req.params
+
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${APPOINTMENTS_SHEET}!A:H`,
+        })
+
+        const rows = response.data.values || []
+        
+        if (rows.length === 0) {
+            return res.json([])
+        }
+
+        // Skip header and filter by org and patient
+        const appointments = rows
+            .slice(1)
+            .filter(row => row[0] === orgId && row[1] === patientId)
+            .map((row, index) => {
+                const safeRow = [...row]
+                while (safeRow.length < 8) {
+                    safeRow.push('')
+                }
+                
+                return {
+                    id: safeRow[2],
+                    appointmentType: safeRow[3],
+                    appointmentDate: safeRow[4],
+                    appointmentTime: safeRow[5],
+                    location: safeRow[6],
+                    providerName: safeRow[7],
+                    status: 'scheduled', // Default status
+                    rowIndex: index + 2
+                }
+            })
+
+        console.log(`Fetched ${appointments.length} appointments for patient ${patientId}`)
+        res.json(appointments)
+    } catch (error) {
+        console.error('Error fetching appointments:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
 // Error handling middleware
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err)
