@@ -4,7 +4,15 @@ export const rideService = {
   // Create new ride request and save to Google Sheets
   scheduleRide: async (organizationId, rideData) => {
     try {
-      const response = await api.post(`/org/${organizationId}/rides`, rideData)
+      const rideWithDefaults = {
+        ...rideData,
+        status: 'Pending',
+        pickupTime: '', // Empty until calculated by driver/system
+        appointmentTime: rideData.appointmentTime, // Imported appointment time
+        notes: rideData.notes || '', // Include notes field, default to empty string
+      }
+      
+      const response = await api.post(`/org/${organizationId}/rides`, rideWithDefaults)
       return response.data
     } catch (error) {
       throw error.response?.data?.error || 'Failed to schedule ride'
@@ -85,57 +93,6 @@ export const rideService = {
       return response.data
     } catch (error) {
       throw error.response?.data?.error || 'Failed to delete ride'
-    }
-  },
-
-  // Get driver accounts from DriverAccounts sheet
-  getDriverAccounts: async (organizationId) => {
-    try {
-      const response = await api.get(`/org/${organizationId}/drivers`)
-      return response.data
-    } catch (error) {
-      throw error.response?.data?.error || 'Failed to fetch driver accounts'
-    }
-  },
-
-  // Get transportation types from driver vehicles (dynamic based on available drivers)
-  getTransportationTypes: async (organizationId) => {
-    try {
-      const drivers = await this.getDriverAccounts(organizationId)
-      return drivers.map(driver => ({
-        id: driver.id || `${driver.make}-${driver.model}-${driver.licensePlate}`,
-        label: `${driver.make} ${driver.model} (${driver.licensePlate})`,
-        driverId: driver.id,
-        make: driver.make,
-        model: driver.model,
-        licensePlate: driver.licensePlate
-      }))
-    } catch (error) {
-      // Fallback to default types if driver data unavailable
-      return [
-        { id: 'standard', label: 'Standard Vehicle' },
-        { id: 'wheelchair', label: 'Wheelchair Accessible' },
-        { id: 'stretcher', label: 'Stretcher Transport' },
-        { id: 'bariatric', label: 'Bariatric' },
-      ]
-    }
-  },
-
-  // Create new ride request with Pending status, empty pickup time, and optional notes
-  scheduleRide: async (organizationId, rideData) => {
-    try {
-      const rideWithDefaults = {
-        ...rideData,
-        status: 'Pending',
-        pickupTime: '', // Empty until calculated by driver/system
-        appointmentTime: rideData.appointmentTime, // Imported appointment time
-        notes: rideData.notes || '', // Include notes field, default to empty string
-      }
-      
-      const response = await api.post(`/org/${organizationId}/rides`, rideWithDefaults)
-      return response.data
-    } catch (error) {
-      throw error.response?.data?.error || 'Failed to schedule ride'
     }
   },
 
