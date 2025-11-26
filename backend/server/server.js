@@ -44,9 +44,16 @@ const initializeGoogleSheets = async () => {
 await initializeGoogleSheets()
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID
-const SHEET_NAME = process.env.SHEET_NAME || 'Rides'
-// Update the range to A:I (added one more column)
-const SHEET_RANGE = 'A:I'
+const RIDES_SHEET = process.env.RIDES_SHEET || 'Rides'
+const PATIENTS_SHEET = 'Patients'
+const APPOINTMENTS_SHEET = 'Appointments'
+const DRIVER_ACCOUNTS_SHEET = 'DriverAccounts'
+
+// Define ranges for each sheet based on their columns
+const RIDES_RANGE = 'A:J'        // OrgId, ID, PatientName, PatientId, AppointmentDate, PickupTime, AppointmentTime, Location, Status, Notes
+const PATIENTS_RANGE = 'A:G'     // OrgId, PatientId, FirstName, LastName, DateOfBirth, Phone, Address
+const APPOINTMENTS_RANGE = 'A:H' // OrgId, PatientId, AppointmentId, AppointmentType, Date, Time, Location, ProviderName
+const DRIVERS_RANGE = 'A:F'      // OrgId, DriverId, Name, Make, Model, LicensePlate
 
 // Middleware to verify auth token (basic implementation)
 const authenticateToken = (req, res, next) => {
@@ -94,7 +101,7 @@ app.get('/api/org/:orgId/rides', authenticateToken, async (req, res) => {
 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
-            range: `${SHEET_NAME}!${SHEET_RANGE}`,
+            range: `${RIDES_SHEET}!${RIDES_RANGE}`,
         })
 
         const rows = response.data.values || []
@@ -109,7 +116,7 @@ app.get('/api/org/:orgId/rides', authenticateToken, async (req, res) => {
         // Convert rows to ride objects and filter by orgId
         const rides = dataRows.map((row, index) => {
             const safeRow = [...row]
-            while (safeRow.length < 9) {
+            while (safeRow.length < 10) {  // Updated to 10 columns
                 safeRow.push('')
             }
             
@@ -123,6 +130,7 @@ app.get('/api/org/:orgId/rides', authenticateToken, async (req, res) => {
                 appointmentTime: safeRow[6] || '',
                 location: safeRow[7] || '',
                 status: safeRow[8] || 'pending',
+                notes: safeRow[9] || '',  // Added notes column
                 rowIndex: index + 2
             }
         })
@@ -159,7 +167,7 @@ app.patch('/api/org/:orgId/rides/:rideId/status', authenticateToken, async (req,
         // Verify the ride belongs to this org
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
-            range: `${SHEET_NAME}!A${rowIndex}`,
+            range: `${RIDES_SHEET}!A${rowIndex}`,
         })
 
         const rideOrgId = response.data.values?.[0]?.[0]
@@ -170,7 +178,7 @@ app.patch('/api/org/:orgId/rides/:rideId/status', authenticateToken, async (req,
         // Update cell I (status column - now 9th column)
         await sheets.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
-            range: `${SHEET_NAME}!I${rowIndex}`,
+            range: `${RIDES_SHEET}!I${rowIndex}`,
             valueInputOption: 'RAW',
             requestBody: {
                 values: [[status]]
@@ -194,7 +202,7 @@ app.patch('/api/org/:orgId/rides/:rideId/status', authenticateToken, async (req,
 app.patch('/api/org/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
     try {
         const { orgId, rideId } = req.params
-        const { pickupTime, appointmentTime, location, rowIndex } = req.body
+        const { pickupTime, appointmentTime, location, notes, rowIndex } = req.body  // Added notes
         
         if (!rowIndex) {
             return res.status(400).json({ error: 'Row index is required' })
@@ -203,7 +211,7 @@ app.patch('/api/org/:orgId/rides/:rideId', authenticateToken, async (req, res) =
         // Verify the ride belongs to this org
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
-            range: `${SHEET_NAME}!A${rowIndex}:I${rowIndex}`,
+            range: `${RIDES_SHEET}!A${rowIndex}:J${rowIndex}`,  // Updated to include column J
         })
 
         const rideRow = response.data.values?.[0]
@@ -216,22 +224,29 @@ app.patch('/api/org/:orgId/rides/:rideId', authenticateToken, async (req, res) =
         
         if (pickupTime !== undefined) {
             updates.push({
-                range: `${SHEET_NAME}!F${rowIndex}`, // Column F = pickupTime
+                range: `${RIDES_SHEET}!F${rowIndex}`, // Column F = pickupTime
                 values: [[pickupTime]]
             })
         }
         
         if (appointmentTime !== undefined) {
             updates.push({
-                range: `${SHEET_NAME}!G${rowIndex}`, // Column G = appointmentTime  
+                range: `${RIDES_SHEET}!G${rowIndex}`, // Column G = appointmentTime  
                 values: [[appointmentTime]]
             })
         }
         
         if (location !== undefined) {
             updates.push({
-                range: `${SHEET_NAME}!H${rowIndex}`, // Column H = location
+                range: `${RIDES_SHEET}!H${rowIndex}`, // Column H = location
                 values: [[location]]
+            })
+        }
+
+        if (notes !== undefined) {
+            updates.push({
+                range: `${RIDES_SHEET}!J${rowIndex}`, // Column J = notes
+                values: [[notes]]
             })
         }
 
@@ -252,7 +267,7 @@ app.patch('/api/org/:orgId/rides/:rideId', authenticateToken, async (req, res) =
         res.json({ 
             success: true, 
             rideId,
-            updatedFields: { pickupTime, appointmentTime, location },
+            updatedFields: { pickupTime, appointmentTime, location, notes },  // Added notes
             rowIndex
         })
     } catch (error) {
@@ -279,7 +294,7 @@ app.post('/api/org/:orgId/rides', authenticateToken, async (req, res) => {
             // Fetch existing rides for this org to generate next ID
             const response = await sheets.spreadsheets.values.get({
                 spreadsheetId: SHEET_ID,
-                range: `${SHEET_NAME}!A:B`,
+                range: `${RIDES_SHEET}!A:B`,
             })
             
             const orgRides = (response.data.values || [])
@@ -303,13 +318,14 @@ app.post('/api/org/:orgId/rides', authenticateToken, async (req, res) => {
             ride.pickupTime || '',
             ride.appointmentTime || '',
             ride.location || '',
-            ride.status || 'pending'
+            ride.status || 'pending',
+            ride.notes || ''  // Added notes column
         ]
 
         // Append to sheet
         await sheets.spreadsheets.values.append({
             spreadsheetId: SHEET_ID,
-            range: `${SHEET_NAME}!A:I`,
+            range: `${RIDES_SHEET}!${RIDES_RANGE}`,
             valueInputOption: 'RAW',
             insertDataOption: 'INSERT_ROWS',
             requestBody: {
@@ -378,7 +394,7 @@ app.get('/api/org/:orgId/ehr/patients/search', authenticateToken, async (req, re
         // Fetch all patients from Patients sheet
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
-            range: `${PATIENTS_SHEET}!A:G`,
+            range: `${PATIENTS_SHEET}!${PATIENTS_RANGE}`,
         })
 
         const rows = response.data.values || []
@@ -390,24 +406,33 @@ app.get('/api/org/:orgId/ehr/patients/search', authenticateToken, async (req, re
         // Skip header row
         const dataRows = rows.slice(1)
         
-        // Search by patient name, ID, or phone
-        const searchLower = query.toLowerCase()
+        // Search by patient name, ID, or phone (case-insensitive)
+        const searchLower = query.toLowerCase().trim()
         const results = dataRows
             .filter(row => {
+                // Ensure we have enough columns
+                const safeRow = [...row]
+                while (safeRow.length < 7) {
+                    safeRow.push('')
+                }
+                
                 // Check if belongs to this org
-                if (row[0] !== orgId) return false
+                if (safeRow[0] !== orgId) return false
                 
-                const firstName = row[2]?.toLowerCase() || ''
-                const lastName = row[3]?.toLowerCase() || ''
-                const patientId = row[1]?.toLowerCase() || ''
-                const phone = row[5]?.toLowerCase() || ''
+                const firstName = safeRow[2]?.toLowerCase() || ''
+                const lastName = safeRow[3]?.toLowerCase() || ''
+                const patientId = safeRow[1]?.toLowerCase() || ''
+                const phone = safeRow[5]?.toLowerCase() || ''
+                const fullName = `${firstName} ${lastName}`.toLowerCase()
                 
-                return firstName.includes(searchLower) ||
+                // Check for exact ID match or partial name/phone match
+                return patientId === searchLower ||
+                       firstName.includes(searchLower) ||
                        lastName.includes(searchLower) ||
-                       patientId.includes(searchLower) ||
+                       fullName.includes(searchLower) ||
                        phone.includes(searchLower)
             })
-            .map((row, index) => {
+            .map((row) => {
                 const safeRow = [...row]
                 while (safeRow.length < 7) {
                     safeRow.push('')
@@ -419,15 +444,57 @@ app.get('/api/org/:orgId/ehr/patients/search', authenticateToken, async (req, re
                     lastName: safeRow[3],
                     dateOfBirth: safeRow[4],
                     phone: safeRow[5],
-                    address: safeRow[6],
-                    rowIndex: index + 2
+                    address: safeRow[6]
                 }
             })
 
-        console.log(`Found ${results.length} patients for query: ${query}`)
+        console.log(`Found ${results.length} patients for query: "${query}" in org ${orgId}`)
         res.json(results)
     } catch (error) {
         console.error('Error searching patients:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// GET /api/org/:orgId/drivers - Get driver accounts
+app.get('/api/org/:orgId/drivers', authenticateToken, async (req, res) => {
+    try {
+        const { orgId } = req.params
+
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${DRIVER_ACCOUNTS_SHEET}!${DRIVERS_RANGE}`,
+        })
+
+        const rows = response.data.values || []
+        
+        if (rows.length === 0) {
+            return res.json([])
+        }
+
+        // Skip header row and filter by organization
+        const drivers = rows
+            .slice(1)
+            .filter(row => row[0] === orgId)
+            .map((row) => {
+                const safeRow = [...row]
+                while (safeRow.length < 6) {
+                    safeRow.push('')
+                }
+                
+                return {
+                    id: safeRow[1],
+                    name: safeRow[2],
+                    make: safeRow[3],
+                    model: safeRow[4],
+                    licensePlate: safeRow[5]
+                }
+            })
+
+        console.log(`Fetched ${drivers.length} drivers for org ${orgId}`)
+        res.json(drivers)
+    } catch (error) {
+        console.error('Error fetching drivers:', error)
         res.status(500).json({ error: error.message })
     }
 })
@@ -439,7 +506,7 @@ app.get('/api/org/:orgId/ehr/patients/:patientId', authenticateToken, async (req
 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
-            range: `${PATIENTS_SHEET}!A:G`,
+            range: `${PATIENTS_SHEET}!${PATIENTS_RANGE}`,
         })
 
         const rows = response.data.values || []
@@ -479,7 +546,7 @@ app.get('/api/org/:orgId/ehr/patients/:patientId/appointments', authenticateToke
 
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
-            range: `${APPOINTMENTS_SHEET}!A:H`,
+            range: `${APPOINTMENTS_SHEET}!${APPOINTMENTS_RANGE}`,
         })
 
         const rows = response.data.values || []
@@ -536,7 +603,7 @@ app.use((req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
     console.log(`Connected to Google Sheet: ${SHEET_ID}`)
-    console.log(`Sheet name: ${SHEET_NAME}`)
+    console.log(`Sheet name: ${RIDES_SHEET}`)
 })
 
 export default app
