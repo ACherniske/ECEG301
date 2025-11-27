@@ -1,6 +1,7 @@
 import express from 'express'
 import { getSheets } from '../config/googleSheets.js'
 import { SHEET_ID, RANGES, PROVIDER_ACCOUNTS_SHEET } from '../constants/sheetConfig.js'
+import { organizationService } from '../services/organizationService.js'
 
 const router = express.Router()
 
@@ -56,12 +57,38 @@ router.post('/login', async (req, res) => {
       status: userRow[6]
     }
 
-    const organization = {
-      id: userRow[0],
-      name: 'Healthcare Organization' // TODO: Fetch from organization data
+    // Fetch organization data using the service
+    let organization
+    try {
+      const orgId = userRow[0] // Organization ID from user row
+      organization = await organizationService.getOrganization(orgId)
+      
+      if (!organization) {
+        // Fallback if organization not found
+        console.warn(`Organization ${orgId} not found, using fallback`)
+        organization = {
+          id: orgId,
+          name: 'Healthcare Organization',
+          address: '',
+          phone: '',
+          email: '',
+          status: 'active'
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching organization:', error)
+      // Fallback organization data
+      organization = {
+        id: userRow[0],
+        name: 'Healthcare Organization',
+        address: '',
+        phone: '',
+        email: '',
+        status: 'active'
+      }
     }
 
-    console.log(`User ${email} logged in successfully`)
+    console.log(`User ${email} from organization ${organization.name} logged in successfully`)
 
     res.json({
       success: true,
@@ -93,21 +120,49 @@ router.get('/me', async (req, res) => {
       return res.status(401).json({ error: 'Unauthorized' })
     }
 
-    // For development, return mock user data
+    // For development, return mock user data with real organization lookup
     // In production, decode JWT and fetch user from database
-    res.json({
-      user: {
-        id: '1',
-        email: 'user@example.com',
-        firstName: 'Test',
-        lastName: 'User',
-        role: 'provider'
-      },
-      organization: {
-        id: 'org1',
-        name: 'Healthcare Organization'
-      }
-    })
+    try {
+      const organization = await organizationService.getOrganization('org1')
+      
+      res.json({
+        user: {
+          id: '1',
+          email: 'user@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          role: 'provider'
+        },
+        organization: organization || {
+          id: 'org1',
+          name: 'Healthcare Organization',
+          address: '',
+          phone: '',
+          email: '',
+          status: 'active'
+        }
+      })
+    } catch (error) {
+      console.error('Error in /me endpoint:', error)
+      // Fallback response
+      res.json({
+        user: {
+          id: '1',
+          email: 'user@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          role: 'provider'
+        },
+        organization: {
+          id: 'org1',
+          name: 'Healthcare Organization',
+          address: '',
+          phone: '',
+          email: '',
+          status: 'active'
+        }
+      })
+    }
   } catch (error) {
     console.error('Auth me error:', error)
     res.status(500).json({ error: 'Internal server error' })

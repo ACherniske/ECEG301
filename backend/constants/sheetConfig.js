@@ -5,6 +5,7 @@ export const APPOINTMENTS_SHEET = process.env.APPOINTMENTS_SHEET || 'Appointment
 export const DRIVER_ACCOUNTS_SHEET = process.env.DRIVER_ACCOUNTS_SHEET || 'DriverAccounts'
 export const INVITATIONS_SHEET = process.env.INVITATIONS_SHEET || 'Invitations'
 export const PROVIDER_ACCOUNTS_SHEET = process.env.PROVIDER_ACCOUNTS_SHEET || 'ProviderAccounts'
+export const ORGANIZATIONS_SHEET = process.env.ORGANIZATIONS_SHEET || 'Organizations' // New sheet
 
 export const RANGES = {
     RIDES: 'A:P',
@@ -12,9 +13,11 @@ export const RANGES = {
     APPOINTMENTS: 'A:H',
     DRIVERS: 'A:F',
     INVITATIONS: 'A:I',
-    PROVIDER_ACCOUNTS: 'A:I'
+    PROVIDER_ACCOUNTS: 'A:I',
+    ORGANIZATIONS: 'A:F'
 }
 
 export const VALID_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled']
 export const VALID_ROLES = ['provider', 'staff', 'admin', 'dev']
 export const VALID_INVITATION_STATUSES = ['pending', 'accepted', 'revoked', 'expired']
+export const VALID_ORG_STATUSES = ['active', 'inactive', 'suspended']
