@@ -1,5 +1,5 @@
-import { useParams, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { NavBar } from '../../components/navigation/NavBar'
 import { PatientSearchStep } from '../../components/schedule/PatientSearchStep'
@@ -12,6 +12,7 @@ import { rideService } from '../../services/rideService'
 export default function OrgScheduleRidePage() {
   const { orgId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { organizationId } = useAuthStore()
 
   // Security check
@@ -31,6 +32,23 @@ export default function OrgScheduleRidePage() {
     notes: '',
     roundTrip: false,
   })
+
+  // Reset form when page is accessed (fresh start each time)
+  useEffect(() => {
+    console.log('Schedule ride page mounted/accessed')
+    // Always start fresh when navigating to this page
+    setCurrentStep(1)
+    setSelectedPatient(null)
+    setSelectedAppointment(null)
+    setFormData({
+      pickupLocation: '',
+      notes: '',
+      roundTrip: false,
+    })
+    setError('')
+    setSuccess('')
+    setLoading(false)
+  }, [location.pathname])
 
   const handlePatientSelected = (patient) => {
     setSelectedPatient(patient)
@@ -94,7 +112,12 @@ export default function OrgScheduleRidePage() {
       setSuccess('Ride scheduled successfully!')
       
       setTimeout(() => {
-        navigate(`/org/${orgId}/dashboard`)
+        navigate(`/org/${orgId}/dashboard`, {
+          state: {
+            message: 'Ride scheduled successfully!',
+            type: 'success'
+          }
+        })
       }, 2000)
     } catch (err) {
       setError(err.message || 'Failed to schedule ride')
