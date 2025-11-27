@@ -62,6 +62,7 @@ app.use('/api/org', driverRoutes)
 app.use('/api/org', patientRoutes)
 app.use('/api/org', appointmentRoutes)
 app.use('/api/org', organizationRoutes)
+app.use('/api/org', invitationRoutes)
 
 // Error handling
 app.use((err, req, res, next) => {
