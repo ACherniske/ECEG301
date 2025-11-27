@@ -1,25 +1,51 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { NavBar } from '../../components/navigation/NavBar'
 import { useRideStore } from '../../store/rideStore'
 import { useEffect, useState } from 'react'
 import { RideListItem } from '../../components/dashboard/RideListItem'
-import { Calendar, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Calendar, Filter, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react'
+import { Button } from '../../components/shared/Button'
 
 export default function OrgRideHistoryPage() {
   const { orgId } = useParams()
-  const { fetchRides, allRides, updateRideStatus } = useRideStore()
+  const location = useLocation()
+  const { fetchRides, allRides, updateRideStatus, clearData } = useRideStore()
   const [filteredRides, setFilteredRides] = useState([])
   const [statusFilter, setStatusFilter] = useState('all')
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Fetch rides on mount
+  // Auto-refresh when page is accessed
   useEffect(() => {
-    fetchRides(orgId)
-  }, [orgId, fetchRides])
+    console.log('Ride history page mounted/accessed')
+    if (orgId) {
+      // Clear any existing error/success messages when switching to this page
+      setError('')
+      setSuccess('')
+      
+      // Force refresh rides data
+      setIsRefreshing(true)
+      clearData()
+      fetchRides(orgId).finally(() => setIsRefreshing(false))
+    }
+  }, [orgId, location.pathname, fetchRides, clearData])
+
+  // Check for success messages from navigation state
+  useEffect(() => {
+    if (location.state?.message) {
+      if (location.state.type === 'success') {
+        setSuccess(location.state.message)
+        setTimeout(() => setSuccess(''), 5000)
+      } else if (location.state.type === 'error') {
+        setError(location.state.message)
+        setTimeout(() => setError(''), 5000)
+      }
+    }
+  }, [location.state])
 
   // Filter and sort rides whenever allRides or filter changes
   useEffect(() => {
@@ -34,7 +60,7 @@ export default function OrgRideHistoryPage() {
     rides.sort((a, b) => {
       const dateA = new Date(a.appointmentDate)
       const dateB = new Date(b.appointmentDate)
-      return dateB - dateA // Reverse order
+      return dateB - dateA
     })
 
     setFilteredRides(rides)
@@ -46,6 +72,25 @@ export default function OrgRideHistoryPage() {
   const startIndex = (currentPage - 1) * itemsPerPage
   const endIndex = startIndex + itemsPerPage
   const currentRides = filteredRides.slice(startIndex, endIndex)
+
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    setError('')
+    setSuccess('')
+    
+    try {
+      clearData()
+      await fetchRides(orgId)
+      setSuccess('Ride history refreshed')
+      setTimeout(() => setSuccess(''), 2000)
+    } catch (err) {
+      setError('Failed to refresh ride history')
+      setTimeout(() => setError(''), 3000)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   // Handle status update
   const handleStatusUpdate = async (rideId, newStatus) => {
@@ -64,7 +109,6 @@ export default function OrgRideHistoryPage() {
 
   // Handle ride update (for editing fields)
   const handleRideUpdate = async (rideId, updatedRide) => {
-    // TODO: Implement API call to update ride details
     console.log('Update ride:', rideId, updatedRide)
     setSuccess('Ride updated successfully')
     setTimeout(() => setSuccess(''), 3000)
@@ -100,9 +144,20 @@ export default function OrgRideHistoryPage() {
       <NavBar />
       
       <div className="max-w-7xl mx-auto p-6">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Ride History</h1>
-          <p className="text-gray-600">View and manage all past and upcoming rides</p>
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Ride History</h1>
+            <p className="text-gray-600">View and manage all past and upcoming rides</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
         </div>
 
         {/* Status Messages */}
