@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { NavBar } from '../../components/navigation/NavBar'
 import { PatientSearchStep } from '../../components/schedule/PatientSearchStep'
-import { AppointmentSelectionStep } from '../../components/schedule/AppointmentSelectionStep'
+import AppointmentSelectionStep from '../../components/schedule/AppointmentSelectionStep'
 import { TransportationDetailsStep } from '../../components/schedule/TransportationDetailsStep'
 import { Button } from '../../components/shared/Button'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
@@ -118,6 +118,31 @@ export default function OrgScheduleRidePage() {
     setError('')
   }
 
+  const handleBack = () => {
+    if (currentStep > 1) {
+      // Clear data when going back
+      if (currentStep === 3) {
+        // Going back from step 3 to 2, clear transportation details
+        setFormData({
+          pickupLocation: '',
+          notes: '',
+          roundTrip: false,
+        })
+      } else if (currentStep === 2) {
+        // Going back from step 2 to 1, clear appointment and transportation
+        setSelectedAppointment(null)
+        setFormData({
+          pickupLocation: '',
+          notes: '',
+          roundTrip: false,
+        })
+      }
+      setCurrentStep(currentStep - 1)
+    } else {
+      navigate(`/org/${orgId}/dashboard`)
+    }
+  }
+
   if (success) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -187,10 +212,10 @@ export default function OrgScheduleRidePage() {
           {currentStep >= 2 && selectedPatient && (
             <div className={`mb-8 pb-8 border-b border-gray-200 ${currentStep > 2 ? 'opacity-60' : ''}`}>
               <AppointmentSelectionStep
-                organizationId={orgId}
+                orgId={orgId}
                 patient={selectedPatient}
                 onAppointmentSelected={handleAppointmentSelected}
-                onLoading={setLoading}
+                onBack={() => setCurrentStep(1)}
               />
               {selectedAppointment && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -217,30 +242,7 @@ export default function OrgScheduleRidePage() {
           <div className="mt-8 flex gap-3 justify-between">
             <Button
               variant="secondary"
-              onClick={() => {
-                if (currentStep > 1) {
-                  // Clear data when going back
-                  if (currentStep === 3) {
-                    // Going back from step 3 to 2, clear transportation details
-                    setFormData({
-                      pickupLocation: '',
-                      notes: '',
-                      roundTrip: false,
-                    })
-                  } else if (currentStep === 2) {
-                    // Going back from step 2 to 1, clear appointment and transportation
-                    setSelectedAppointment(null)
-                    setFormData({
-                      pickupLocation: '',
-                      notes: '',
-                      roundTrip: false,
-                    })
-                  }
-                  setCurrentStep(currentStep - 1)
-                } else {
-                  navigate(`/org/${orgId}/dashboard`)
-                }
-              }}
+              onClick={handleBack}
               disabled={loading}
             >
               {currentStep === 1 ? 'Cancel' : 'Previous'}

@@ -1,9 +1,77 @@
 import express from 'express'
 import { getSheets } from '../config/googleSheets.js'
-import { SHEET_ID, RIDES_SHEET, RANGES, VALID_STATUSES } from '../constants/sheetConfig.js'
+import { SHEET_ID, RIDES_SHEET, APPOINTMENTS_SHEET, RANGES, VALID_STATUSES } from '../constants/sheetConfig.js'
 import { authenticateToken } from '../middleware/auth.js'
 
 const router = express.Router()
+
+// Helper function to check if appointment is in the past
+const isAppointmentInPast = (appointmentDate, appointmentTime) => {
+  if (!appointmentDate) return false
+  
+  const now = new Date()
+  const appointmentDateTime = new Date(appointmentDate)
+  
+  // If we have time, include it in the comparison
+  if (appointmentTime) {
+    const [hours, minutes] = appointmentTime.split(':')
+    appointmentDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
+  }
+  
+  return appointmentDateTime < now
+}
+
+// Helper function to check for existing rides
+const checkExistingRide = async (orgId, patientId, appointmentDate, appointmentTime, appointmentId = null) => {
+  const sheets = getSheets()
+  
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: `${RIDES_SHEET}!${RANGES.RIDES}`,
+  })
+
+  const rows = response.data.values || []
+  
+  // Check if a ride already exists for this appointment
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i]
+    const rideOrgId = row[0]
+    const ridePatientId = row[3] // Updated column index
+    const rideAppointmentDate = row[4] // Updated column index
+    const rideAppointmentTime = row[8] // Updated column index
+    const rideAppointmentId = row[5] // New appointment ID column
+    const rideStatus = row[10] // Updated status column
+    
+    // Check if ride exists for same org, patient, date, and time
+    // Also check appointmentId if provided
+    // and is not cancelled or completed
+    if (rideOrgId === orgId && 
+        ridePatientId === patientId && 
+        rideAppointmentDate === appointmentDate &&
+        rideAppointmentTime === appointmentTime &&
+        rideStatus !== 'cancelled' &&
+        rideStatus !== 'completed') {
+      
+      // If appointmentId is provided, also check that
+      if (appointmentId && rideAppointmentId === appointmentId) {
+        return {
+          exists: true,
+          rideId: row[1],
+          status: rideStatus
+        }
+      } else if (!appointmentId) {
+        // Fallback to date/time matching if no appointmentId provided
+        return {
+          exists: true,
+          rideId: row[1],
+          status: rideStatus
+        }
+      }
+    }
+  }
+  
+  return { exists: false }
+}
 
 // GET /api/org/:orgId/rides
 router.get('/:orgId/rides', authenticateToken, async (req, res) => {
@@ -22,7 +90,7 @@ router.get('/:orgId/rides', authenticateToken, async (req, res) => {
         const dataRows = rows.slice(1)
         const rides = dataRows.map((row, index) => {
             const safeRow = [...row]
-            while (safeRow.length < 15) safeRow.push('') // Updated to 15 columns (A-O)
+            while (safeRow.length < 16) safeRow.push('') // Updated to 16 columns (A-P)
             
             return {
                 orgId: safeRow[0] || '',
@@ -30,16 +98,17 @@ router.get('/:orgId/rides', authenticateToken, async (req, res) => {
                 patientName: safeRow[2] || '',
                 patientId: safeRow[3] || '',
                 appointmentDate: safeRow[4] || '',
-                pickupTime: safeRow[5] || '',
-                roundTrip: safeRow[6] === 'true' || safeRow[6] === true || false,
-                appointmentTime: safeRow[7] || '',
-                providerLocation: safeRow[8] || '',
-                status: safeRow[9] || 'pending',
-                notes: safeRow[10] || '',
-                pickupLocation: safeRow[11] || '',
-                driverName: safeRow[12] || '',
-                driverPlate: safeRow[13] || '',
-                driverCar: safeRow[14] || '',
+                appointmentId: safeRow[5] || '', // New field
+                pickupTime: safeRow[6] || '',
+                roundTrip: safeRow[7] === 'true' || safeRow[7] === true || false,
+                appointmentTime: safeRow[8] || '',
+                providerLocation: safeRow[9] || '',
+                status: safeRow[10] || 'pending',
+                notes: safeRow[11] || '',
+                pickupLocation: safeRow[12] || '',
+                driverName: safeRow[13] || '',
+                driverPlate: safeRow[14] || '',
+                driverCar: safeRow[15] || '',
                 rowIndex: index + 2
             }
         }).filter(ride => ride.patientName && ride.orgId === orgId)
@@ -50,6 +119,139 @@ router.get('/:orgId/rides', authenticateToken, async (req, res) => {
         console.error('Error fetching rides:', error)
         res.status(500).json({ error: error.message })
     }
+})
+
+// POST /api/org/:orgId/rides - Create a new ride with validation
+router.post('/:orgId/rides', authenticateToken, async (req, res) => {
+  try {
+    const { orgId } = req.params
+    const rideData = req.body
+    
+    console.log('Creating ride for org:', orgId, 'with data:', rideData)
+
+    // Validate required fields
+    const requiredFields = ['patientId', 'patientName', 'appointmentDate', 'appointmentTime']
+    for (const field of requiredFields) {
+      if (!rideData[field]) {
+        return res.status(400).json({ 
+          error: `Missing required field: ${field}`,
+          field 
+        })
+      }
+    }
+
+    // Check if appointment is in the past
+    if (isAppointmentInPast(rideData.appointmentDate, rideData.appointmentTime)) {
+      return res.status(400).json({ 
+        error: 'Cannot schedule rides for appointments that have already passed',
+        type: 'PAST_APPOINTMENT',
+        appointmentDate: rideData.appointmentDate,
+        appointmentTime: rideData.appointmentTime
+      })
+    }
+
+    // Check for existing rides
+    const existingRide = await checkExistingRide(
+      orgId, 
+      rideData.patientId, 
+      rideData.appointmentDate, 
+      rideData.appointmentTime,
+      rideData.appointmentId
+    )
+
+    if (existingRide.exists) {
+      return res.status(409).json({ 
+        error: 'A ride already exists for this appointment',
+        type: 'DUPLICATE_RIDE',
+        existingRideId: existingRide.rideId,
+        existingRideStatus: existingRide.status,
+        appointment: {
+          date: rideData.appointmentDate,
+          time: rideData.appointmentTime,
+          patient: rideData.patientName
+        }
+      })
+    }
+
+    // If validation passes, proceed with ride creation
+    const sheets = getSheets()
+
+    // Get existing rides to generate new ID
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${RIDES_SHEET}!${RANGES.RIDES}`,
+    })
+
+    const rows = response.data.values || []
+    
+    // Generate new ride ID
+    const existingIds = rows
+      .slice(1) // Skip header
+      .filter(row => row[0] === orgId) // Only rides for this org
+      .map(row => parseInt(row[1]))
+      .filter(id => !isNaN(id))
+    
+    const newId = existingIds.length > 0 
+      ? (Math.max(...existingIds) + 1).toString()
+      : '1'
+
+    // Prepare ride data with defaults - Updated column mapping
+    const rideValues = [
+      orgId, // A
+      newId, // B
+      rideData.patientName || '', // C
+      rideData.patientId || '', // D
+      rideData.appointmentDate || '', // E
+      rideData.appointmentId || '', // F - New appointment ID
+      '', // G - pickupTime - empty until assigned
+      rideData.roundTrip === true || rideData.roundTrip === 'true' ? 'true' : 'false', // H
+      rideData.appointmentTime || '', // I
+      rideData.providerLocation || rideData.appointmentLocation || '', // J
+      'pending', // K - status
+      rideData.notes || '', // L
+      rideData.pickupLocation || '', // M
+      rideData.driverName || '', // N
+      rideData.driverPlate || '', // O
+      rideData.driverCar || '', // P
+    ]
+
+    // Add ride to sheet
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: `${RIDES_SHEET}!${RANGES.RIDES}`,
+      valueInputOption: 'RAW',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values: [rideValues]
+      }
+    })
+
+    const ride = {
+      id: newId,
+      orgId,
+      patientId: rideData.patientId,
+      patientName: rideData.patientName,
+      appointmentDate: rideData.appointmentDate,
+      appointmentId: rideData.appointmentId,
+      appointmentTime: rideData.appointmentTime,
+      providerLocation: rideData.providerLocation || rideData.appointmentLocation,
+      pickupLocation: rideData.pickupLocation,
+      notes: rideData.notes,
+      pickupTime: '',
+      roundTrip: rideData.roundTrip === true || rideData.roundTrip === 'true',
+      driverName: rideData.driverName,
+      driverPlate: rideData.driverPlate,
+      driverCar: rideData.driverCar,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    }
+
+    console.log(`Created ride ${newId} for org ${orgId}`)
+    res.status(201).json(ride)
+  } catch (error) {
+    console.error('Error creating ride:', error)
+    res.status(500).json({ error: error.message })
+  }
 })
 
 // PATCH /api/org/:orgId/rides/:rideId/status
@@ -73,9 +275,10 @@ router.patch('/:orgId/rides/:rideId/status', authenticateToken, async (req, res)
         const rideOrgId = response.data.values?.[0]?.[0]
         if (rideOrgId !== orgId) return res.status(403).json({ error: 'Access denied to this ride' })
 
+        // Updated column K for status (was J)
         await sheets.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!J${rowIndex}`,
+            range: `${RIDES_SHEET}!K${rowIndex}`,
             valueInputOption: 'RAW',
             requestBody: { values: [[status]] }
         })
@@ -93,6 +296,7 @@ router.patch('/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
     try {
         const { orgId, rideId } = req.params
         const { 
+            appointmentId,
             pickupTime, 
             roundTrip,
             appointmentTime, 
@@ -110,7 +314,7 @@ router.patch('/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
         const sheets = getSheets()
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!A${rowIndex}:O${rowIndex}`,
+            range: `${RIDES_SHEET}!A${rowIndex}:P${rowIndex}`, // Updated to P
         })
 
         const rideRow = response.data.values?.[0]
@@ -119,16 +323,18 @@ router.patch('/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
         }
 
         const updates = []
+        // Updated field mappings with new column structure
         const fieldMappings = [
-            { field: 'pickupTime', column: 'F' },
-            { field: 'roundTrip', column: 'G' },
-            { field: 'appointmentTime', column: 'H' },
-            { field: 'providerLocation', column: 'I' },
-            { field: 'notes', column: 'K' },
-            { field: 'pickupLocation', column: 'L' },
-            { field: 'driverName', column: 'M' },
-            { field: 'driverPlate', column: 'N' },
-            { field: 'driverCar', column: 'O' }
+            { field: 'appointmentId', column: 'F' }, // New field
+            { field: 'pickupTime', column: 'G' }, // Shifted from F
+            { field: 'roundTrip', column: 'H' }, // Shifted from G
+            { field: 'appointmentTime', column: 'I' }, // Shifted from H
+            { field: 'providerLocation', column: 'J' }, // Shifted from I
+            { field: 'notes', column: 'L' }, // Shifted from K
+            { field: 'pickupLocation', column: 'M' }, // Shifted from L
+            { field: 'driverName', column: 'N' }, // Shifted from M
+            { field: 'driverPlate', column: 'O' }, // Shifted from N
+            { field: 'driverCar', column: 'P' } // Shifted from O
         ]
 
         fieldMappings.forEach(({ field, column }) => {
@@ -158,66 +364,6 @@ router.patch('/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
         res.json({ success: true, rideId, updatedFields: req.body, rowIndex })
     } catch (error) {
         console.error('Error updating ride:', error)
-        res.status(500).json({ error: error.message })
-    }
-})
-
-// POST /api/org/:orgId/rides
-router.post('/:orgId/rides', authenticateToken, async (req, res) => {
-    try {
-        const { orgId } = req.params
-        const ride = req.body
-        
-        if (!ride.patientName || !ride.patientId) {
-            return res.status(400).json({ error: 'Patient name and ID are required' })
-        }
-
-        const sheets = getSheets()
-        if (!ride.id) {
-            const response = await sheets.spreadsheets.values.get({
-                spreadsheetId: SHEET_ID,
-                range: `${RIDES_SHEET}!A:B`,
-            })
-            
-            const orgRides = (response.data.values || [])
-                .slice(1)
-                .filter(row => row[0] === orgId)
-                .map(row => parseInt(row[1]))
-                .filter(id => !isNaN(id))
-            
-            ride.id = orgRides.length > 0 ? (Math.max(...orgRides) + 1).toString() : '1'
-        }
-
-        const values = [
-            orgId, // A
-            ride.id, // B
-            ride.patientName, // C
-            ride.patientId, // D
-            ride.appointmentDate || new Date().toISOString().split('T')[0], // E
-            ride.pickupTime || '', // F
-            ride.roundTrip === true || ride.roundTrip === 'true' ? 'true' : 'false', // G
-            ride.appointmentTime || '', // H
-            ride.providerLocation || ride.appointmentLocation || '', // I
-            ride.status || 'pending', // J
-            ride.notes || '', // K
-            ride.pickupLocation || '', // L
-            ride.driverName || '', // M
-            ride.driverPlate || '', // N
-            ride.driverCar || '' // O
-        ]
-
-        await sheets.spreadsheets.values.append({
-            spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!${RANGES.RIDES}`,
-            valueInputOption: 'RAW',
-            insertDataOption: 'INSERT_ROWS',
-            requestBody: { values: [values] }
-        })
-
-        console.log(`Added new ride ${ride.id} for org ${orgId}`)
-        res.status(201).json({ success: true, ride: { orgId, ...ride, id: ride.id } })
-    } catch (error) {
-        console.error('Error adding ride:', error)
         res.status(500).json({ error: error.message })
     }
 })
