@@ -36,17 +36,21 @@ export default function OrgDashboardPage() {
     fetchRides(orgId)
   }, [orgId, fetchRides])
 
-  const handleStatusUpdate = async (rideId, newStatus) => {
-    setError('')
-    setSuccess('')
+  const handleRideUpdate = async (rideId, updateFields) => {
+    try {
+      // Remove rowIndex from updateFields since the store handles it
+      const { rowIndex, ...fieldsToUpdate } = updateFields
+      await updateRide(orgId, rideId, fieldsToUpdate)
+    } catch (error) {
+      console.error('Failed to update ride:', error)
+    }
+  }
 
+  const handleStatusUpdate = async (rideId, newStatus) => {
     try {
       await updateRideStatus(orgId, rideId, newStatus)
-      setSuccess('Ride status updated successfully')
-      setTimeout(() => setSuccess(''), 3000)
-    } catch (err) {
-      setError(err.message || 'Failed to update ride status')
-      setTimeout(() => setError(''), 3000)
+    } catch (error) {
+      console.error('Failed to update ride status:', error)
     }
   }
 
@@ -66,21 +70,6 @@ export default function OrgDashboardPage() {
       setTimeout(() => setError(''), 3000)
     } finally {
       setIsRefreshing(false)
-    }
-  }
-
-  const handleRideUpdate = async (rideId, updatedRide) => {
-    setError('')
-    setSuccess('')
-
-    try {
-      // You'll need to implement this in your store/API
-      await updateRide(orgId, rideId, updatedRide)
-      setSuccess('Ride updated successfully')
-      setTimeout(() => setSuccess(''), 3000)
-    } catch (err) {
-      setError(err.message || 'Failed to update ride')
-      setTimeout(() => setError(''), 3000)
     }
   }
 
