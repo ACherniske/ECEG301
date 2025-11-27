@@ -1,16 +1,15 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import authRoutes from './routes/auth.js'
+import ridesRoutes from './routes/rides.js'
+import driverRoutes from './routes/drivers.js'
+import patientRoutes from './routes/patients.js'
+import appointmentRoutes from './routes/appointments.js'
+import invitationRoutes from './routes/invitations.js'
+import organizationRoutes from './routes/organizations.js'
 import { initializeGoogleSheets, getSheets } from './config/googleSheets.js'
 import { SHEET_ID} from './constants/sheetConfig.js'
-import ridesRouter from './routes/rides.js'
-import patientsRouter from './routes/patients.js'
-import appointmentsRouter from './routes/appointments.js'
-import driversRouter from './routes/drivers.js'
-import invitationsRouter from './routes/invitations.js'
-import usersRouter from './routes/users.js'
-import authRouter from './routes/auth.js'
-import publicInvitationsRouter from './routes/publicInvitations.js'
 import { emailService } from './services/emailService.js'
 
 dotenv.config()
@@ -52,16 +51,15 @@ app.get('/health', (req, res) => {
 })
 
 // Public API Routes (no authentication required)
-app.use('/api', publicInvitationsRouter)
-app.use('/api/auth', authRouter)
+app.use('/api', invitationRoutes)
+app.use('/api/auth', authRoutes)
 
 // Protected API Routes (require authentication)
-app.use('/api/org', ridesRouter)
-app.use('/api/org', patientsRouter)
-app.use('/api/org', appointmentsRouter)
-app.use('/api/org', driversRouter)
-app.use('/api/org', invitationsRouter)
-app.use('/api/org', usersRouter)
+app.use('/api/org', ridesRoutes)
+app.use('/api/org', driverRoutes)  
+app.use('/api/org', patientRoutes)
+app.use('/api/org', appointmentRoutes)
+app.use('/api/org', organizationRoutes)
 
 // Error handling
 app.use((err, req, res, next) => {
