@@ -137,7 +137,7 @@ router.post('/accept-invitation/:token', async (req, res) => {
       ? (Math.max(...existingUserIds) + 1).toString()
       : '1'
 
-    // TODO: Hash password properly in production
+    // TODO: Hash password properly in production - for now store as plain text for development
     const userValues = [
       invitationRow[1], // orgId
       newUserId,
@@ -146,7 +146,8 @@ router.post('/accept-invitation/:token', async (req, res) => {
       invitationRow[4], // lastName
       invitationRow[5], // role
       'active',
-      new Date().toISOString().split('T')[0] // createdAt
+      new Date().toISOString().split('T')[0], // createdAt
+      password // Store password (TODO: hash in production)
     ]
 
     // Add user to ProviderAccounts sheet
