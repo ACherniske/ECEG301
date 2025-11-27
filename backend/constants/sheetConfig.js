@@ -7,12 +7,12 @@ export const INVITATIONS_SHEET = process.env.INVITATIONS_SHEET || 'Invitations'
 export const PROVIDER_ACCOUNTS_SHEET = process.env.PROVIDER_ACCOUNTS_SHEET || 'ProviderAccounts'
 
 export const RANGES = {
-    RIDES: 'A:O',
+    RIDES: 'A:P',
     PATIENTS: 'A:G',
     APPOINTMENTS: 'A:H',
     DRIVERS: 'A:F',
     INVITATIONS: 'A:I',
-    PROVIDER_ACCOUNTS: 'A:H'
+    PROVIDER_ACCOUNTS: 'A:I'
 }
 
 export const VALID_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled']
