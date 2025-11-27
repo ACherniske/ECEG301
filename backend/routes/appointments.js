@@ -5,11 +5,12 @@ import { authenticateToken } from '../middleware/auth.js'
 
 const router = express.Router()
 
-// GET /api/org/:orgId/ehr/patients/:patientId/appointments
+// GET /api/org/:orgId/patients/:patientId/appointments
 router.get('/:orgId/patients/:patientId/appointments', authenticateToken, async (req, res) => {
     try {
         const { orgId, patientId } = req.params
-
+        console.log(`Fetching appointments for patient ${patientId} in org ${orgId}`)
+        
         const sheets = getSheets()
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
@@ -17,27 +18,24 @@ router.get('/:orgId/patients/:patientId/appointments', authenticateToken, async 
         })
 
         const rows = response.data.values || []
-        if (rows.length === 0) return res.json([])
+        if (rows.length <= 1) {
+            console.log('No appointment data found')
+            return res.json([])
+        }
 
         const appointments = rows.slice(1)
-            .filter(row => row[0] === orgId && row[1] === patientId)
-            .map((row, index) => {
-                const safeRow = [...row]
-                while (safeRow.length < 8) safeRow.push('')
-                
-                return {
-                    id: safeRow[2],
-                    appointmentType: safeRow[3],
-                    appointmentDate: safeRow[4],
-                    appointmentTime: safeRow[5],
-                    location: safeRow[6],
-                    providerName: safeRow[7],
-                    status: 'scheduled',
-                    rowIndex: index + 2
-                }
-            })
+            .filter(row => row[0] === orgId && row[1] === patientId) // Filter by org and patient
+            .map(row => ({
+                id: row[2] || '',
+                appointmentType: row[3] || '',
+                appointmentDate: row[4] || '',
+                appointmentTime: row[5] || '',
+                location: row[6] || '',
+                providerName: row[7] || ''
+            }))
+            .filter(apt => apt.appointmentDate) // Only include appointments with dates
 
-        console.log(`Fetched ${appointments.length} appointments for patient ${patientId}`)
+        console.log(`Found ${appointments.length} appointments for patient ${patientId}`)
         res.json(appointments)
     } catch (error) {
         console.error('Error fetching appointments:', error)

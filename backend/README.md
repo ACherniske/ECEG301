@@ -2,39 +2,6 @@
 
 A Node.js/Express backend API that integrates with Google Sheets to manage healthcare transportation rides, patient data, and appointments.
 
-## 🏗️ Architecture
-
-- **Framework**: Express.js with ES6 modules
-- **Database**: Google Sheets (via Google Sheets API)
-- **Authentication**: JWT-based (development mode available)
-- **Routing**: Modular route-based architecture
-
-## 📁 Project Structure
-
-```
-backend/
-├── .env                       # Environment variables
-├── package.json               # Node.js dependencies
-├── server.js                  # Main application entry point
-├── ServiceAccount.json        # Google Service Account credentials
-├── README.md                  # This file
-├── config/
-│   └── googleSheets.js        # Google Sheets API configuration
-├── constants/
-│   └── sheetConfig.js         # Sheet configuration constants
-├── middleware/
-│   └── auth.js                # Authentication middleware
-├── routes/
-│   ├── appointments.js        # Appointment management routes
-│   ├── drivers.js             # Driver account routes
-│   ├── invitations.js         # User invitation routes (placeholder)
-│   ├── patients.js            # Patient/EHR routes
-│   ├── rides.js               # Ride management routes
-│   └── users.js               # User management routes (placeholder)
-└── utils/
-    └── dateUtils.js           # Date utility functions
-```
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -51,6 +18,10 @@ PORT=3000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
 
+# Email Configuration
+EMAIL_USER=medirideportal@gmail.com
+EMAIL_APP_PASSWORD=your_app_password
+
 # Google Sheets Configuration
 GOOGLE_SHEET_ID=your_google_sheet_id
 
@@ -65,28 +36,18 @@ DRIVERS_SHEET=DriverAccounts
 PATIENTS_SHEET=Patients
 APPOINTMENTS_SHEET=Appointments
 
+# Additional Sheets
+INVITATIONS_SHEET=Invitations
+
 # Google Service Account Key (JSON string)
 GOOGLE_SERVICE_ACCOUNT_KEY='{...}'
-```
-
-### Installation & Running
-
-```bash
-# Install dependencies
-npm install
-
-# Development mode (with nodemon)
-npm run dev
-
-# Production mode
-npm start
 ```
 
 ## 📊 Google Sheets Structure
 
 The API expects these sheets with specific column structures:
 
-### Rides Sheet (Columns A-N) - **Updated Structure**
+### Rides Sheet (Columns A-P) - **Updated Structure with Appointment ID**
 | Column | Field | Description |
 |--------|-------|-------------|
 | A | orgId | Organization identifier |
@@ -94,15 +55,17 @@ The API expects these sheets with specific column structures:
 | C | patientName | Patient full name |
 | D | patientId | Patient identifier |
 | E | appointmentDate | Date of appointment (YYYY-MM-DD) |
-| F | pickupTime | Scheduled pickup time |
-| G | appointmentTime | Appointment time |
-| H | providerLocation | Appointment/provider location |
-| I | status | Ride status (pending/confirmed/completed/cancelled) |
-| J | notes | Special requirements and notes |
-| K | pickupLocation | Patient pickup location |
-| L | driverName | Assigned driver name |
-| M | driverPlate | Driver vehicle license plate |
-| N | driverCar | Driver vehicle make/model |
+| F | **appointmentId** | **Appointment unique identifier** |
+| G | pickupTime | Scheduled pickup time |
+| H | roundTrip | Boolean for round trip requirement |
+| I | appointmentTime | Appointment time |
+| J | providerLocation | Appointment/provider location |
+| K | status | Ride status (pending/confirmed/completed/cancelled) |
+| L | notes | Special requirements and notes |
+| M | pickupLocation | Patient pickup location |
+| N | driverName | Assigned driver name |
+| O | driverPlate | Driver vehicle license plate |
+| P | driverCar | Driver vehicle make/model |
 
 ### Patients Sheet (Columns A-G)
 | Column | Field | Description |
@@ -120,7 +83,7 @@ The API expects these sheets with specific column structures:
 |--------|-------|-------------|
 | A | OrgId | Organization identifier |
 | B | PatientId | Patient identifier |
-| C | AppointmentId | Appointment unique identifier |
+| C | **AppointmentId** | **Appointment unique identifier** |
 | D | AppointmentType | Type of appointment |
 | E | Date | Appointment date (YYYY-MM-DD) |
 | F | Time | Appointment time |
@@ -178,7 +141,7 @@ if (process.env.NODE_ENV === 'development') {
 
 ### Example Requests
 
-#### Create New Ride (Updated Fields)
+#### Create New Ride (Updated with Appointment ID)
 ```bash
 POST /api/org/org1/rides
 Content-Type: application/json
@@ -187,6 +150,7 @@ Authorization: Bearer <token>
 {
   "patientName": "John Doe",
   "patientId": "1001",
+  "appointmentId": "APT-001",
   "appointmentDate": "2024-01-15",
   "appointmentTime": "10:00 AM",
   "providerLocation": "Main Hospital - Cardiology",
@@ -219,6 +183,18 @@ Authorization: Bearer <token>
   "rowIndex": 5
 }
 ```
+
+## 🔧 Key Features
+
+### Appointment ID Integration
+- **Duplicate Prevention**: Uses appointment ID for more accurate duplicate ride detection
+- **Data Consistency**: Links rides directly to specific appointments
+- **Improved Tracking**: Better relationship between appointments and transportation
+
+### Validation Features
+- **Past Appointment Check**: Prevents scheduling rides for past appointments
+- **Duplicate Ride Detection**: Uses appointment ID and date/time matching
+- **Required Field Validation**: Ensures all necessary data is present
 
 ## 🔧 Configuration
 
