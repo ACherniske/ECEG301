@@ -28,7 +28,7 @@ export default function OrgAdminPage() {
   }
 
   // Check if user has admin role
-  if (user?.role !== 'admin') {
+  if (user?.role !== 'admin' && user?.role !== 'dev') {
     return (
       <div className="min-h-screen bg-gray-50">
         <NavBar />

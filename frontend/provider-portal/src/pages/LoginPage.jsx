@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Mail, Lock, ArrowRight } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { authService } from '../services/authService'
-import { GoogleAuthButton } from '../components/auth/GoogleAuthButton'
+// import { GoogleAuthButton } from '../components/auth/GoogleAuthButton'
 import { Button } from '../components/shared/Button'
 
 export default function LoginPage() {
@@ -31,28 +31,26 @@ export default function LoginPage() {
     }
   }
 
-  //hard coded login for testing
-  const handleAdminLogin = () => {
-    const adminUser = {
-      id: 'admin',
-      name: 'Admin User',
-      email: 'admin@example.com',
-      role: 'admin',
+  const handleDevLogin = () => {
+    const devUser = {
+      id: 'dev',
+      name: 'Dev User',
+      email: 'dev@example.com',
+      role: 'dev',
     }
-    const adminToken = 'admin-token'
-    const adminOrganization = {
+    const devToken = 'dev-token'
+    const devOrganization = {
       id: 'org1',
-      name: 'Admin Organization',
+      name: 'Development Organization',
     }
-    login(adminUser, adminToken, adminOrganization, 'local')
-    navigate(`/org/${adminOrganization.id}/dashboard`)
+    login(devUser, devToken, devOrganization, 'local')
+    navigate(`/org/${devOrganization.id}/dashboard`)
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-blue-50 p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          {/* Logo & Title */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-3xl">P</span>
@@ -127,32 +125,18 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500 font-medium">or</span>
-            </div>
-          </div>
-
-          {/* OAuth Button */}
-          <GoogleAuthButton />
-
           <div className="mt-4">
             <Button
               type="button"
               variant="secondary"
               size="md"
               className="w-full"
-              onClick={handleAdminLogin}
+              onClick={handleDevLogin}
             >
-              Admin Test Login (Development Only)
+              Developer Login (Development Only)
             </Button>
           </div>
 
-          {/* Footer */}
           <div className="mt-8 pt-6 border-t border-gray-200">
             <div className="text-xs text-gray-500 text-center space-y-1">
               <p>Protected Health Information (PHI)</p>

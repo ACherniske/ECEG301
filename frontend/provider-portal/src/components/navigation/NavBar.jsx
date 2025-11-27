@@ -42,7 +42,7 @@ export const NavBar = () => {
           >
             Ride History
           </button>
-          {user?.role === 'admin' && (
+          {(user?.role === 'admin' || user?.role === 'dev') && (
             <button 
               onClick={() => navigate(`/org/${orgId}/admin`)}
               className="hover:text-blue-100 transition-colors font-medium flex items-center gap-2"
