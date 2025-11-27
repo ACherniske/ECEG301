@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Lock, Mail, User, ArrowRight } from 'lucide-react'
 import { Button } from '../components/shared/Button'
-import { authService } from '../services/authService'
 import { useAuthStore } from '../store/authStore'
 
 export default function AcceptInvitationPage() {
@@ -20,6 +19,9 @@ export default function AcceptInvitationPage() {
   })
   const [submitting, setSubmitting] = useState(false)
 
+  // API base URL
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+
   useEffect(() => {
     const loadInvitation = async () => {
       if (!token) {
@@ -29,13 +31,19 @@ export default function AcceptInvitationPage() {
       }
 
       try {
-        const response = await fetch(`/api/invitations/${token}`)
+        console.log('Loading invitation with token:', token)
+        const response = await fetch(`${API_BASE_URL}/api/accept-invitation/${token}`)
+        console.log('Response status:', response.status)
+        
         if (!response.ok) {
-          throw new Error('Invalid or expired invitation')
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Invalid or expired invitation')
         }
         const data = await response.json()
+        console.log('Invitation data:', data)
         setInvitation(data)
       } catch (err) {
+        console.error('Error loading invitation:', err)
         setError(err.message)
       } finally {
         setLoading(false)
@@ -43,7 +51,7 @@ export default function AcceptInvitationPage() {
     }
 
     loadInvitation()
-  }, [token])
+  }, [token, API_BASE_URL])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -62,7 +70,8 @@ export default function AcceptInvitationPage() {
     setSubmitting(true)
 
     try {
-      const response = await fetch(`/api/invitations/${token}/accept`, {
+      console.log('Accepting invitation...')
+      const response = await fetch(`${API_BASE_URL}/api/accept-invitation/${token}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,13 +82,17 @@ export default function AcceptInvitationPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to accept invitation')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to accept invitation')
       }
 
       const { user, organization, token: authToken } = await response.json()
+      console.log('Account created successfully:', { user, organization })
+      
       login(user, authToken, organization, 'local')
       navigate(`/org/${organization.id}/dashboard`)
     } catch (err) {
+      console.error('Error accepting invitation:', err)
       setError(err.message)
     } finally {
       setSubmitting(false)
@@ -89,7 +102,10 @@ export default function AcceptInvitationPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Loading invitation...</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading invitation...</p>
+        </div>
       </div>
     )
   }
@@ -98,6 +114,9 @@ export default function AcceptInvitationPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 to-blue-100 p-4">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-2xl mx-auto mb-4 flex items-center justify-center">
+            <span className="text-red-600 text-2xl">!</span>
+          </div>
           <h1 className="text-2xl font-bold text-red-600 mb-4">Invalid Invitation</h1>
           <p className="text-gray-600 mb-6">{error}</p>
           <Button
@@ -117,7 +136,7 @@ export default function AcceptInvitationPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-3xl">M</span>
+              <span className="text-white font-bold text-3xl">P</span>
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome!</h1>
             <p className="text-gray-600 font-medium">Set up your account</p>
@@ -128,6 +147,7 @@ export default function AcceptInvitationPage() {
               <p className="text-sm text-gray-700 mb-1">Invited as:</p>
               <p className="font-semibold text-gray-900">{invitation.firstName} {invitation.lastName}</p>
               <p className="text-sm text-gray-600">{invitation.email}</p>
+              <p className="text-sm text-gray-600">Role: {invitation.role}</p>
               <p className="text-sm text-gray-600 mt-2">Organization: {invitation.organizationName}</p>
             </div>
           )}

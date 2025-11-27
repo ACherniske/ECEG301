@@ -9,11 +9,19 @@ import appointmentsRouter from './routes/appointments.js'
 import driversRouter from './routes/drivers.js'
 import invitationsRouter from './routes/invitations.js'
 import usersRouter from './routes/users.js'
+import publicInvitationsRouter from './routes/publicInvitations.js'
+import { emailService } from './services/emailService.js'
 
 dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3000
+
+// Debug environment variables
+console.log('Environment check:')
+console.log('- NODE_ENV:', process.env.NODE_ENV)
+console.log('- EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set')
+console.log('- EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? 'Set' : 'Not set')
 
 // Middleware
 app.use(cors({
@@ -24,6 +32,12 @@ app.use(express.json())
 
 // Initialize Google Sheets on startup
 await initializeGoogleSheets()
+console.log('Google Sheets initialized')
+
+// Check email service status
+setTimeout(() => {
+    console.log('Email service status:', emailService.transporter ? 'Ready' : 'Not ready')
+}, 1000) // Give it a moment to initialize
 
 // Health check
 app.get('/health', (req, res) => {
@@ -31,11 +45,15 @@ app.get('/health', (req, res) => {
     res.json({ 
         status: 'healthy', 
         timestamp: new Date().toISOString(),
-        sheets: sheets ? 'connected' : 'disconnected'
+        sheets: sheets ? 'connected' : 'disconnected',
+        email: emailService.transporter ? 'ready' : 'not ready'
     })
 })
 
-// API Routes
+// Public API Routes (no authentication required)
+app.use('/api', publicInvitationsRouter)
+
+// Protected API Routes (require authentication)
 app.use('/api/org', ridesRouter)
 app.use('/api/org', patientsRouter)
 app.use('/api/org', appointmentsRouter)
@@ -54,6 +72,7 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
+    console.log(`404 - Route not found: ${req.method} ${req.path}`)
     res.status(404).json({ error: 'Route not found' })
 })
 
@@ -61,6 +80,7 @@ app.use((req, res) => {
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
     console.log(`Connected to Google Sheet: ${SHEET_ID}`)
+    console.log(`CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`)
 })
 
 export default app
