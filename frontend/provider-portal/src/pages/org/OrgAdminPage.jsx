@@ -194,6 +194,42 @@ export default function OrgAdminPage() {
     }
   }
 
+  // Add this function to refresh data
+  const refreshData = async () => {
+    setLoading(true)
+    try {
+      // Re-fetch both invitations and users
+      const [invResponse, usersResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/org/${orgId}/invitations`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch(`${API_BASE_URL}/api/org/${orgId}/users`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      ])
+
+      if (invResponse.ok) {
+        const invData = await invResponse.json()
+        setInvitations(invData)
+      }
+
+      if (usersResponse.ok) {
+        const usersData = await usersResponse.json()
+        setUsers(usersData)
+      }
+    } catch (err) {
+      console.error('Refresh error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar />
