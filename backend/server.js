@@ -8,6 +8,7 @@ import patientRoutes from './routes/patients.js'
 import appointmentRoutes from './routes/appointments.js'
 import invitationRoutes from './routes/invitations.js'
 import organizationRoutes from './routes/organizations.js'
+import userRoutes from './routes/users.js'
 import { initializeGoogleSheets, getSheets } from './config/googleSheets.js'
 import { SHEET_ID} from './constants/sheetConfig.js'
 import { emailService } from './services/emailService.js'
@@ -55,6 +56,7 @@ app.use('/api', invitationRoutes)
 app.use('/api/auth', authRoutes)
 
 // Protected API Routes (require authentication)
+app.use('/api/org', userRoutes)
 app.use('/api/org', ridesRoutes)
 app.use('/api/org', driverRoutes)  
 app.use('/api/org', patientRoutes)
