@@ -48,9 +48,9 @@ export const useAuthStore = create((set) => ({
 
 // create hard coded admin user for testing
 export const useAdminAuthStore = create((set) => ({
-    user: { id: 'admin', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
-    token: 'admin-token',
-    organization: { id: 'org1', name: 'Admin Organization' },
+    user: { id: 'dev', name: 'Dev User', email: 'dev@example.com', role: 'dev' },
+    token: 'dev-token',
+    organization: { id: 'org1', name: 'Development Organization' },
     isAuthenticated: true,
     authMethod: 'local',
   }))
