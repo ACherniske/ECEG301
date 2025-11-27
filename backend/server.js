@@ -9,6 +9,7 @@ import appointmentsRouter from './routes/appointments.js'
 import driversRouter from './routes/drivers.js'
 import invitationsRouter from './routes/invitations.js'
 import usersRouter from './routes/users.js'
+import authRouter from './routes/auth.js'
 import publicInvitationsRouter from './routes/publicInvitations.js'
 import { emailService } from './services/emailService.js'
 
@@ -52,6 +53,7 @@ app.get('/health', (req, res) => {
 
 // Public API Routes (no authentication required)
 app.use('/api', publicInvitationsRouter)
+app.use('/api/auth', authRouter)
 
 // Protected API Routes (require authentication)
 app.use('/api/org', ridesRouter)
