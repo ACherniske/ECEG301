@@ -1,7 +1,98 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo } from 'react'
 import { Clock, Calendar, MapPin, User, X, Edit2, Check, X as XIcon, ArrowRightLeft } from 'lucide-react'
 import { StatusBadge } from '../shared/StatusBadge'
 import { Card } from '../shared/Card'
+
+// Move EditableField outside to prevent recreation on every render
+const EditableField = memo(({ 
+  field, 
+  icon: Icon, 
+  label, 
+  value, 
+  type = "text", 
+  placeholder,
+  isEditing,
+  editValue,
+  isUpdating,
+  onEdit,
+  onSave,
+  onCancel,
+  onChange,
+  onKeyDown,
+  inputRef
+}) => {
+  return (
+    <div>
+      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{label}</div>
+      <div className="flex items-center gap-2">
+        <Icon size={16} className="text-gray-400 shrink-0" />
+        {isEditing ? (
+          <div className="flex items-center gap-2 flex-1">
+            {type === 'textarea' ? (
+              <textarea
+                ref={inputRef}
+                value={editValue || ''}
+                onChange={(e) => onChange(field, e.target.value)}
+                onKeyDown={(e) => onKeyDown(e, field)}
+                placeholder={placeholder}
+                className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm text-gray-800 focus:outline-none focus:border-blue-500 resize-none"
+                rows={2}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <input
+                ref={inputRef}
+                type={type}
+                value={editValue || ''}
+                onChange={(e) => onChange(field, e.target.value)}
+                onKeyDown={(e) => onKeyDown(e, field)}
+                placeholder={placeholder}
+                className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm text-gray-800 focus:outline-none focus:border-blue-500"
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onSave(field)
+              }}
+              disabled={isUpdating}
+              className="p-1 text-green-600 hover:bg-green-50 rounded disabled:opacity-50"
+              title="Save (Enter)"
+            >
+              <Check size={16} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onCancel(field)
+              }}
+              className="p-1 text-red-600 hover:bg-red-50 rounded"
+              title="Cancel (Escape)"
+            >
+              <XIcon size={16} />
+            </button>
+          </div>
+        ) : (
+          <div 
+            className="flex items-center gap-2 flex-1 group cursor-text hover:bg-gray-50 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(field)
+            }}
+          >
+            <span className="text-gray-800 flex-1">
+              {value || <span className="text-gray-400">{placeholder}</span>}
+            </span>
+            <Edit2 size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+})
+
+EditableField.displayName = 'EditableField'
 
 export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -18,20 +109,33 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
     driverCar: ride.driverCar
   })
   const containerRef = useRef(null)
+  const inputRefs = useRef({})
 
-  // Update editValues when ride prop changes
+  // Update editValues when ride prop changes (only if not currently editing)
   useEffect(() => {
-    setEditValues({
-      pickupTime: ride.pickupTime,
-      appointmentTime: ride.appointmentTime,
-      providerLocation: ride.providerLocation,
-      pickupLocation: ride.pickupLocation,
-      notes: ride.notes,
-      driverName: ride.driverName,
-      driverPlate: ride.driverPlate,
-      driverCar: ride.driverCar
-    })
-  }, [ride])
+    if (!editingField) {
+      setEditValues({
+        pickupTime: ride.pickupTime,
+        appointmentTime: ride.appointmentTime,
+        providerLocation: ride.providerLocation,
+        pickupLocation: ride.pickupLocation,
+        notes: ride.notes,
+        driverName: ride.driverName,
+        driverPlate: ride.driverPlate,
+        driverCar: ride.driverCar
+      })
+    }
+  }, [
+    ride.pickupTime,
+    ride.appointmentTime,
+    ride.providerLocation,
+    ride.pickupLocation,
+    ride.notes,
+    ride.driverName,
+    ride.driverPlate,
+    ride.driverCar,
+    editingField
+  ])
 
   const statusOptions = [
     { value: 'pending', label: 'Pending', color: 'yellow' },
@@ -53,6 +157,19 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [isExpanded])
+
+  // Auto-focus when entering edit mode
+  useEffect(() => {
+    if (editingField && inputRefs.current[editingField]) {
+      const input = inputRefs.current[editingField]
+      setTimeout(() => {
+        input.focus()
+        if (input.type !== 'time' && input.setSelectionRange) {
+          input.setSelectionRange(input.value.length, input.value.length)
+        }
+      }, 0)
+    }
+  }, [editingField])
 
   const handleStatusChange = async (newStatus) => {
     if (newStatus === ride.status) {
@@ -91,7 +208,6 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
     setIsUpdating(true)
     try {
       if (onRideUpdate) {
-        // Create the update object with the field and rowIndex
         const updates = {
           [field]: editValues[field] || '',
           rowIndex: ride.rowIndex
@@ -103,7 +219,6 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
       setEditingField(null)
     } catch (error) {
       console.error('Failed to update field:', error)
-      // Revert to original value on error
       setEditValues(prev => ({ ...prev, [field]: ride[field] }))
     } finally {
       setIsUpdating(false)
@@ -119,78 +234,24 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
     setEditValues(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleCardClick = () => {
-    setIsExpanded(!isExpanded)
+  const handleKeyDown = (e, field) => {
+    // Only handle specific keys, don't interfere with normal typing
+    if (e.key === 'Enter') {
+      // For textarea, allow Enter unless Ctrl+Enter or Shift+Enter is pressed
+      if (e.target.tagName.toLowerCase() === 'textarea' && !e.ctrlKey && !e.shiftKey) {
+        return // Allow normal Enter behavior in textarea
+      }
+      e.preventDefault()
+      handleFieldSave(field)
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      handleFieldCancel(field)
+    }
+    // Don't prevent default for any other keys - allow normal typing
   }
 
-  const EditableField = ({ field, icon: Icon, label, value, type = "text", placeholder }) => {
-    const isEditing = editingField === field
-
-    return (
-      <div>
-        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{label}</div>
-        <div className="flex items-center gap-2">
-          <Icon size={16} className="text-gray-400 shrink-0" />
-          {isEditing ? (
-            <div className="flex items-center gap-2 flex-1">
-              {type === 'textarea' ? (
-                <textarea
-                  value={editValues[field] || ''}
-                  onChange={(e) => handleInputChange(field, e.target.value)}
-                  placeholder={placeholder}
-                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm text-gray-800 focus:outline-none focus:border-blue-500 resize-none"
-                  rows={2}
-                  autoFocus
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <input
-                  type={type}
-                  value={editValues[field] || ''}
-                  onChange={(e) => handleInputChange(field, e.target.value)}
-                  placeholder={placeholder}
-                  className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm text-gray-800 focus:outline-none focus:border-blue-500"
-                  autoFocus
-                  onClick={(e) => e.stopPropagation()}
-                />
-              )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleFieldSave(field)
-                }}
-                disabled={isUpdating}
-                className="p-1 text-green-600 hover:bg-green-50 rounded disabled:opacity-50"
-              >
-                <Check size={16} />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleFieldCancel(field)
-                }}
-                className="p-1 text-red-600 hover:bg-red-50 rounded"
-              >
-                <XIcon size={16} />
-              </button>
-            </div>
-          ) : (
-            <div 
-              className="flex items-center gap-2 flex-1 group cursor-text hover:bg-gray-50 rounded px-2 py-1 -mx-2 -my-1 transition-colors"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleFieldEdit(field)
-              }}
-            >
-              <span className="text-gray-800 flex-1">
-                {value || <span className="text-gray-400">{placeholder}</span>}
-              </span>
-              <Edit2 size={14} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
-          )}
-        </div>
-      </div>
-    )
+  const handleCardClick = () => {
+    setIsExpanded(!isExpanded)
   }
 
   return (
@@ -262,7 +323,7 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
                   </div>
                   <div className="min-w-0">
                     <div className="font-semibold text-gray-800 text-sm">{ride.patientName}</div>
-                    <div className="text-xs text-gray-500">ID: {ride.patientId} • Row: {ride.rowIndex}</div>
+                    <div className="text-xs text-gray-500">ID: {ride.patientId}</div>
                   </div>
                 </div>
               </div>
@@ -294,6 +355,15 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
                 value={ride.pickupTime}
                 placeholder="TBD"
                 type="time"
+                isEditing={editingField === 'pickupTime'}
+                editValue={editValues.pickupTime}
+                isUpdating={isUpdating}
+                onEdit={handleFieldEdit}
+                onSave={handleFieldSave}
+                onCancel={handleFieldCancel}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                inputRef={(el) => inputRefs.current['pickupTime'] = el}
               />
               <EditableField
                 field="appointmentTime"
@@ -301,6 +371,15 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
                 label="Appointment"
                 value={ride.appointmentTime}
                 type="time"
+                isEditing={editingField === 'appointmentTime'}
+                editValue={editValues.appointmentTime}
+                isUpdating={isUpdating}
+                onEdit={handleFieldEdit}
+                onSave={handleFieldSave}
+                onCancel={handleFieldCancel}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                inputRef={(el) => inputRefs.current['appointmentTime'] = el}
               />
               <EditableField
                 field="providerLocation"
@@ -308,6 +387,15 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
                 label="Destination"
                 value={ride.providerLocation}
                 placeholder="Provider location"
+                isEditing={editingField === 'providerLocation'}
+                editValue={editValues.providerLocation}
+                isUpdating={isUpdating}
+                onEdit={handleFieldEdit}
+                onSave={handleFieldSave}
+                onCancel={handleFieldCancel}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                inputRef={(el) => inputRefs.current['providerLocation'] = el}
               />
             </div>
 
@@ -318,6 +406,15 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
                 label="Pickup Location"
                 value={ride.pickupLocation}
                 placeholder="Patient address"
+                isEditing={editingField === 'pickupLocation'}
+                editValue={editValues.pickupLocation}
+                isUpdating={isUpdating}
+                onEdit={handleFieldEdit}
+                onSave={handleFieldSave}
+                onCancel={handleFieldCancel}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                inputRef={(el) => inputRefs.current['pickupLocation'] = el}
               />
               <div className="space-y-2">
                 <EditableField
@@ -326,6 +423,15 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
                   label="Driver"
                   value={ride.driverName}
                   placeholder="Unassigned"
+                  isEditing={editingField === 'driverName'}
+                  editValue={editValues.driverName}
+                  isUpdating={isUpdating}
+                  onEdit={handleFieldEdit}
+                  onSave={handleFieldSave}
+                  onCancel={handleFieldCancel}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  inputRef={(el) => inputRefs.current['driverName'] = el}
                 />
                 {ride.driverName && (
                   <div className="text-xs text-gray-600 ml-6">
@@ -343,6 +449,16 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
                 label="Notes"
                 value={ride.notes}
                 placeholder="Special requirements or notes"
+                type="textarea"
+                isEditing={editingField === 'notes'}
+                editValue={editValues.notes}
+                isUpdating={isUpdating}
+                onEdit={handleFieldEdit}
+                onSave={handleFieldSave}
+                onCancel={handleFieldCancel}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                inputRef={(el) => inputRefs.current['notes'] = el}
               />
             </div>
 
