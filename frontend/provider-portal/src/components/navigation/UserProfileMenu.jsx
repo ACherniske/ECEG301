@@ -97,7 +97,7 @@ export const UserProfileMenu = ({ orgId }) => {
               className="w-full px-4 py-2 flex items-center gap-3 text-gray-700 hover:bg-gray-50 transition-colors text-sm"
             >
               <Settings size={16} className="text-gray-400" />
-              <span>Account Settings</span>
+              <span>Organization Settings</span>
             </button>
 
             <hr className="my-2" />
