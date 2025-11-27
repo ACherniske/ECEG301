@@ -1,13 +1,14 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { NavBar } from '../../components/navigation/NavBar'
 import { useState, useEffect } from 'react'
-import { Plus, Mail, Trash2, Shield, User } from 'lucide-react'
+import { Plus, Mail, Trash2, Shield, User, RefreshCw } from 'lucide-react'
 import { Button } from '../../components/shared/Button'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 
 export default function OrgAdminPage() {
   const { orgId } = useParams()
+  const location = useLocation()
   const { organizationId, user } = useAuthStore()
   const [invitations, setInvitations] = useState([])
   const [users, setUsers] = useState([])
@@ -45,60 +46,62 @@ export default function OrgAdminPage() {
     )
   }
 
+  // Auto-refresh when page is accessed
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
-      setError('')
-      try {
-        // Fetch invitations
-        console.log('Fetching invitations from:', `${API_BASE_URL}/api/org/${orgId}/invitations`)
-        const invResponse = await fetch(`${API_BASE_URL}/api/org/${orgId}/invitations`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        
-        console.log('Invitations response status:', invResponse.status)
-        if (invResponse.ok) {
-          const invData = await invResponse.json()
-          console.log('Invitations data:', invData)
-          setInvitations(invData)
-        } else {
-          const errorText = await invResponse.text()
-          console.error('Invitations error response:', errorText)
-        }
-
-        // Fetch users
-        console.log('Fetching users from:', `${API_BASE_URL}/api/org/${orgId}/users`)
-        const usersResponse = await fetch(`${API_BASE_URL}/api/org/${orgId}/users`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        
-        console.log('Users response status:', usersResponse.status)
-        if (usersResponse.ok) {
-          const usersData = await usersResponse.json()
-          console.log('Users data:', usersData)
-          setUsers(usersData)
-        } else {
-          const errorText = await usersResponse.text()
-          console.error('Users error response:', errorText)
-        }
-      } catch (err) {
-        console.error('Fetch error:', err)
-        setError(`Failed to load data: ${err.message}`)
-      } finally {
-        setLoading(false)
-      }
-    }
-
+    console.log('Admin page mounted/accessed')
     if (orgId) {
+      // Clear any existing error/success messages when switching to this page
+      setError('')
+      setSuccess('')
+      setShowInviteForm(false)
+      
+      // Fetch fresh data
       fetchData()
     }
-  }, [orgId, API_BASE_URL])
+  }, [orgId, location.pathname])
+
+  const fetchData = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      console.log('Fetching admin data...')
+      
+      // Fetch invitations and users in parallel
+      const [invResponse, usersResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/org/${orgId}/invitations`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
+            'Content-Type': 'application/json'
+          }
+        }),
+        fetch(`${API_BASE_URL}/api/org/${orgId}/users`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
+            'Content-Type': 'application/json'
+          }
+        })
+      ])
+
+      if (invResponse.ok) {
+        const invData = await invResponse.json()
+        setInvitations(invData)
+      } else {
+        console.error('Failed to fetch invitations:', await invResponse.text())
+      }
+
+      if (usersResponse.ok) {
+        const usersData = await usersResponse.json()
+        setUsers(usersData)
+      } else {
+        console.error('Failed to fetch users:', await usersResponse.text())
+      }
+    } catch (err) {
+      console.error('Fetch error:', err)
+      setError(`Failed to load data: ${err.message}`)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleInvite = async (e) => {
     e.preventDefault()
@@ -107,7 +110,6 @@ export default function OrgAdminPage() {
     setLoading(true)
 
     try {
-      console.log('Sending invitation:', inviteData)
       const response = await fetch(`${API_BASE_URL}/api/org/${orgId}/invitations`, {
         method: 'POST',
         headers: {
@@ -132,6 +134,11 @@ export default function OrgAdminPage() {
       setSuccess(`Invitation sent to ${inviteData.email}`)
       setInviteData({ email: '', firstName: '', lastName: '', role: 'provider' })
       setShowInviteForm(false)
+
+      // Auto-refresh after invitation to catch any immediate acceptances
+      setTimeout(() => {
+        fetchData()
+      }, 2000)
 
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
@@ -194,49 +201,26 @@ export default function OrgAdminPage() {
     }
   }
 
-  // Add this function to refresh data
-  const refreshData = async () => {
-    setLoading(true)
-    try {
-      // Re-fetch both invitations and users
-      const [invResponse, usersResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/org/${orgId}/invitations`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
-            'Content-Type': 'application/json'
-          }
-        }),
-        fetch(`${API_BASE_URL}/api/org/${orgId}/users`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
-            'Content-Type': 'application/json'
-          }
-        })
-      ])
-
-      if (invResponse.ok) {
-        const invData = await invResponse.json()
-        setInvitations(invData)
-      }
-
-      if (usersResponse.ok) {
-        const usersData = await usersResponse.json()
-        setUsers(usersData)
-      }
-    } catch (err) {
-      console.error('Refresh error:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <NavBar />
 
       <div className="max-w-7xl mx-auto p-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Administration</h1>
-        <p className="text-gray-600 mb-6">Manage organization members and invitations</p>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Administration</h1>
+            <p className="text-gray-600">Manage organization members and invitations</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={fetchData}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </div>
 
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">

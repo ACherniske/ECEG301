@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Plus, Calendar, CheckCircle2, Clock, RefreshCw } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -14,6 +14,7 @@ import { useRideStore } from '../../store/rideStore'
 
 export default function OrgDashboardPage() {
   const { orgId } = useParams()
+  const location = useLocation()
   const navigate = useNavigate()
   const { user, organization } = useAuthStore()
   const { 
@@ -31,26 +32,58 @@ export default function OrgDashboardPage() {
   const [success, setSuccess] = useState('')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
-  // Fetch rides on mount
+  // Auto-refresh when page is accessed (including navigation between pages)
   useEffect(() => {
-    fetchRides(orgId)
-  }, [orgId, fetchRides])
+    console.log('Dashboard page mounted/accessed')
+    if (orgId) {
+      // Clear any existing error/success messages when switching to this page
+      setError('')
+      setSuccess('')
+      
+      // Force refresh rides data
+      clearData()
+      fetchRides(orgId)
+    }
+  }, [orgId, location.pathname, fetchRides, clearData])
+
+  // Check for success messages from navigation state (like from ride scheduling)
+  useEffect(() => {
+    if (location.state?.message) {
+      if (location.state.type === 'success') {
+        setSuccess(location.state.message)
+        setTimeout(() => setSuccess(''), 5000)
+      } else if (location.state.type === 'error') {
+        setError(location.state.message)
+        setTimeout(() => setError(''), 5000)
+      }
+      
+      // Clear the state to prevent showing the message again on refresh
+      navigate(location.pathname, { replace: true })
+    }
+  }, [location.state, navigate, location.pathname])
 
   const handleRideUpdate = async (rideId, updateFields) => {
     try {
-      // Remove rowIndex from updateFields since the store handles it
       const { rowIndex, ...fieldsToUpdate } = updateFields
       await updateRide(orgId, rideId, fieldsToUpdate)
+      setSuccess('Ride updated successfully')
+      setTimeout(() => setSuccess(''), 3000)
     } catch (error) {
       console.error('Failed to update ride:', error)
+      setError('Failed to update ride')
+      setTimeout(() => setError(''), 3000)
     }
   }
 
   const handleStatusUpdate = async (rideId, newStatus) => {
     try {
       await updateRideStatus(orgId, rideId, newStatus)
+      setSuccess('Ride status updated successfully')
+      setTimeout(() => setSuccess(''), 3000)
     } catch (error) {
       console.error('Failed to update ride status:', error)
+      setError('Failed to update ride status')
+      setTimeout(() => setError(''), 3000)
     }
   }
 
@@ -60,13 +93,12 @@ export default function OrgDashboardPage() {
     setSuccess('')
 
     try {
-      // Clear cached data to force a fresh fetch
       clearData()
       await fetchRides(orgId)
-      setSuccess('Rides refreshed successfully')
+      setSuccess('Dashboard refreshed successfully')
       setTimeout(() => setSuccess(''), 2000)
     } catch (err) {
-      setError('Failed to refresh rides')
+      setError('Failed to refresh dashboard')
       setTimeout(() => setError(''), 3000)
     } finally {
       setIsRefreshing(false)
