@@ -1,74 +1,86 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Mail, Lock, ArrowRight } from 'lucide-react'
-import { useAuthStore } from '../store/authStore'
-import { authService } from '../services/authService'
-// import { GoogleAuthButton } from '../components/auth/GoogleAuthButton'
+import { useNavigate, Link } from 'react-router-dom'
+import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react'
 import { Button } from '../components/shared/Button'
+import { useAuthStore } from '../store/authStore'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  
   const navigate = useNavigate()
   const { login } = useAuthStore()
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
-  const handleLogin = async (e) => {
+  // API base URL
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
     try {
-      const { token, user, organization } = await authService.loginLocal(email, password)
+      console.log('Attempting login with:', { email: formData.email })
+      
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        })
+      })
+
+      console.log('Login response status:', response.status)
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Login failed')
+      }
+
+      const { user, organization, token } = await response.json()
+      console.log('Login successful:', { user, organization })
+      
+      // Store auth data
       login(user, token, organization, 'local')
+      
+      // Navigate to dashboard
       navigate(`/org/${organization.id}/dashboard`)
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.')
+      console.error('Login error:', err)
+      setError(err.message || 'Failed to login. Please try again.')
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleDevLogin = () => {
-    const devUser = {
-      id: 'dev',
-      name: 'Dev User',
-      email: 'dev@example.com',
-      role: 'dev',
-    }
-    const devToken = 'dev-token'
-    const devOrganization = {
-      id: 'org1',
-      name: 'Development Organization',
-    }
-    login(devUser, devToken, devOrganization, 'local')
-    navigate(`/org/${devOrganization.id}/dashboard`)
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-50 via-white to-blue-50 p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
+          {/* Header */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-3xl">P</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Provider Portal</h1>
-            <p className="text-gray-600 font-medium">Healthcare Transportation Platform</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
+            <p className="text-gray-600 font-medium">Sign in to your account</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
-                  <span className="text-red-600 text-sm font-bold">!</span>
-                </div>
-                <p className="text-sm text-red-700">{error}</p>
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-700 text-sm">
+                {error}
               </div>
             )}
 
+            {/* Email */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Email Address
@@ -77,15 +89,16 @@ export default function LoginPage() {
                 <Mail size={18} className="absolute left-3 top-3 text-gray-400" />
                 <input 
                   type="email" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
                   placeholder="provider@hospital.com"
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
               </div>
             </div>
 
+            {/* Password */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Password
@@ -93,58 +106,59 @@ export default function LoginPage() {
               <div className="relative">
                 <Lock size={18} className="absolute left-3 top-3 text-gray-400" />
                 <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  type={showPassword ? "text" : "password"}
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="rounded w-4 h-4 cursor-pointer" />
-                <span className="text-gray-700">Remember me</span>
-              </label>
-              <button type="button" className="text-blue-600 hover:text-blue-700 font-medium transition-colors">
-                Forgot password?
-              </button>
-            </div>
-
+            {/* Submit Button */}
             <Button
               type="submit"
               variant="primary"
               size="md"
               className="w-full"
               disabled={loading}
-              icon={ArrowRight}
             >
               {loading ? 'Signing in...' : 'Sign In'}
+              <ArrowRight size={18} className="ml-2" />
             </Button>
           </form>
 
-          <div className="mt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              className="w-full"
-              onClick={handleDevLogin}
-            >
-              Developer Login (Development Only)
-            </Button>
-          </div>
-
+          {/* Footer */}
           <div className="mt-8 pt-6 border-t border-gray-200">
-            <div className="text-xs text-gray-500 text-center space-y-1">
-              <p>Protected Health Information (PHI)</p>
-              <p>HIPAA Compliant | End-to-End Encrypted</p>
-              <p className="text-xs text-gray-400 mt-3">Need access? Contact your organization administrator</p>
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-4">
+                Don't have an account? Contact your administrator for an invitation.
+              </p>
+              <div className="text-xs text-gray-500">
+                <p>Protected Health Information (PHI)</p>
+                <p>HIPAA Compliant | End-to-End Encrypted</p>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Dev Mode Helper */}
+        {import.meta.env.DEV && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-xs text-yellow-700 font-medium mb-2">Development Mode</p>
+            <p className="text-xs text-yellow-600">
+              Use any email from your ProviderAccounts sheet and any password to login.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
