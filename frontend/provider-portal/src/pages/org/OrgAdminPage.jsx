@@ -22,12 +22,15 @@ export default function OrgAdminPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // API base URL
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+
   // Security check
   if (organizationId !== orgId) {
     return <div>Access Denied</div>
   }
 
-  // Check if user has admin role
+  // Check if user has admin or dev role
   if (user?.role !== 'admin' && user?.role !== 'dev') {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -35,7 +38,7 @@ export default function OrgAdminPage() {
         <div className="max-w-7xl mx-auto p-6">
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <h2 className="text-xl font-bold text-red-700 mb-2">Access Denied</h2>
-            <p className="text-red-600">You must be an administrator to access this page.</p>
+            <p className="text-red-600">You must be an administrator or developer to access this page.</p>
           </div>
         </div>
       </div>
@@ -45,38 +48,57 @@ export default function OrgAdminPage() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
+      setError('')
       try {
         // Fetch invitations
-        const invResponse = await fetch(`/api/org/${orgId}/invitations`, {
+        console.log('Fetching invitations from:', `${API_BASE_URL}/api/org/${orgId}/invitations`)
+        const invResponse = await fetch(`${API_BASE_URL}/api/org/${orgId}/invitations`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
+            'Content-Type': 'application/json'
           }
         })
+        
+        console.log('Invitations response status:', invResponse.status)
         if (invResponse.ok) {
           const invData = await invResponse.json()
+          console.log('Invitations data:', invData)
           setInvitations(invData)
+        } else {
+          const errorText = await invResponse.text()
+          console.error('Invitations error response:', errorText)
         }
 
         // Fetch users
-        const usersResponse = await fetch(`/api/org/${orgId}/users`, {
+        console.log('Fetching users from:', `${API_BASE_URL}/api/org/${orgId}/users`)
+        const usersResponse = await fetch(`${API_BASE_URL}/api/org/${orgId}/users`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
+            'Content-Type': 'application/json'
           }
         })
+        
+        console.log('Users response status:', usersResponse.status)
         if (usersResponse.ok) {
           const usersData = await usersResponse.json()
+          console.log('Users data:', usersData)
           setUsers(usersData)
+        } else {
+          const errorText = await usersResponse.text()
+          console.error('Users error response:', errorText)
         }
       } catch (err) {
-        setError('Failed to load data')
-        console.error('Failed to fetch data:', err)
+        console.error('Fetch error:', err)
+        setError(`Failed to load data: ${err.message}`)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchData()
-  }, [orgId])
+    if (orgId) {
+      fetchData()
+    }
+  }, [orgId, API_BASE_URL])
 
   const handleInvite = async (e) => {
     e.preventDefault()
@@ -85,12 +107,12 @@ export default function OrgAdminPage() {
     setLoading(true)
 
     try {
-      // Call backend to create invitation
-      const response = await fetch(`/api/org/${orgId}/invitations`, {
+      console.log('Sending invitation:', inviteData)
+      const response = await fetch(`${API_BASE_URL}/api/org/${orgId}/invitations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`
         },
         body: JSON.stringify({
           email: inviteData.email,
@@ -101,7 +123,8 @@ export default function OrgAdminPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to send invitation')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to send invitation')
       }
 
       const newInvitation = await response.json()
@@ -110,9 +133,9 @@ export default function OrgAdminPage() {
       setInviteData({ email: '', firstName: '', lastName: '', role: 'provider' })
       setShowInviteForm(false)
 
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
+      console.error('Invitation error:', err)
       setError(err.message || 'Failed to send invitation')
     } finally {
       setLoading(false)
@@ -123,21 +146,24 @@ export default function OrgAdminPage() {
     if (!confirm('Are you sure? This will revoke the invitation.')) return
 
     try {
-      const response = await fetch(`/api/org/${orgId}/invitations/${invitationId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/org/${orgId}/invitations/${invitationId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
+          'Content-Type': 'application/json'
         }
       })
 
       if (!response.ok) {
-        throw new Error('Failed to delete invitation')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete invitation')
       }
 
       setInvitations(invitations.filter(inv => inv.id !== invitationId))
       setSuccess('Invitation revoked')
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
+      console.error('Delete invitation error:', err)
       setError(err.message)
     }
   }
@@ -146,21 +172,24 @@ export default function OrgAdminPage() {
     if (!confirm('Are you sure? This user will lose access.')) return
 
     try {
-      const response = await fetch(`/api/org/${orgId}/users/${userId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/org/${orgId}/users/${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || 'dev-token'}`,
+          'Content-Type': 'application/json'
         }
       })
 
       if (!response.ok) {
-        throw new Error('Failed to remove user')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to remove user')
       }
 
       setUsers(users.filter(u => u.id !== userId))
       setSuccess('User removed')
       setTimeout(() => setSuccess(''), 3000)
     } catch (err) {
+      console.error('Delete user error:', err)
       setError(err.message)
     }
   }
@@ -182,6 +211,12 @@ export default function OrgAdminPage() {
         {success && (
           <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 text-green-700">
             {success}
+          </div>
+        )}
+
+        {loading && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-700">
+            Loading data...
           </div>
         )}
 
@@ -255,6 +290,7 @@ export default function OrgAdminPage() {
                   <option value="provider">Provider</option>
                   <option value="staff">Staff</option>
                   <option value="admin">Administrator</option>
+                  <option value="dev">Developer</option>
                 </select>
               </div>
 
@@ -326,7 +362,7 @@ export default function OrgAdminPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      {u.role === 'admin' && (
+                      {(u.role === 'admin' || u.role === 'dev') && (
                         <Shield size={18} className="text-blue-600" />
                       )}
                       <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
