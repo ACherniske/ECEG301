@@ -21,7 +21,7 @@ export default function OrgDashboardPage() {
     rides, 
     upcomingCount, 
     completedToday, 
-    pendingConfirmation, 
+    awaitingDriver, 
     isLoading, 
     fetchRides, 
     updateRideStatus, 
@@ -138,8 +138,8 @@ export default function OrgDashboardPage() {
             icon={CheckCircle2}
           />
           <StatCard
-            label="Pending Confirmation"
-            value={pendingConfirmation}
+            label="Unclaimed Rides"
+            value={awaitingDriver}
             bgColor="bg-amber-100"
             textColor="text-amber-600"
             borderColor="border-amber-300"

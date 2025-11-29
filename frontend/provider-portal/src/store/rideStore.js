@@ -80,10 +80,12 @@ export const useRideStore = create((set, get) => ({
 
     calculateStats: (rides) => {
         const upcoming = rides.filter(ride => {
-            const isConfirmedOrScheduled = ride.status.toLowerCase() === 'confirmed' || 
-                                         ride.status.toLowerCase() === 'scheduled'
+            const isUpcoming = ride.status.toLowerCase() === 'claimed' || 
+                               ride.status.toLowerCase() === 'en route' ||
+                               ride.status.toLowerCase() === 'in transit' ||
+                               ride.status.toLowerCase() === 'arrived'
             const isTodaysRide = isToday(ride.appointmentDate)
-            return isConfirmedOrScheduled && isTodaysRide
+            return isUpcoming && isTodaysRide
         }).length
         
         const completed = rides.filter(ride => {
@@ -92,16 +94,15 @@ export const useRideStore = create((set, get) => ({
             return isCompleted && isTodaysRide
         }).length
         
-        const pending = rides.filter(ride => {
-            const isPending = ride.status.toLowerCase() === 'pending'
-            const isTodaysRide = isToday(ride.appointmentDate)
-            return isPending && isTodaysRide
+        const awaiting = rides.filter(ride => {
+            const isAwaitingDriver = ride.status.toLowerCase() === 'pending' || ride.status.toLowerCase() === 'confirmed'
+            return isAwaitingDriver
         }).length
 
         return {
             upcomingCount: upcoming,
             completedToday: completed,
-            pendingConfirmation: pending
+            awaitingDriver: awaiting
         }
     },
 
