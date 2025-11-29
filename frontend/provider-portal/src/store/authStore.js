@@ -1,6 +1,7 @@
 import { create } from 'zustand'
+import { authService } from '../services/authService'
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create((set, get) => ({
   user: null,
   token: null,
   organization: null,
@@ -26,15 +27,42 @@ export const useAuthStore = create((set) => ({
     authMethod,
   }),
 
-  logout: () => set({
-    user: null,
-    token: null,
-    organization: null,
-    organizationId: null,
-    role: null,
-    isAuthenticated: false,
-    authMethod: null,
-  }),
+  logout: async () => {
+    try {
+      // Call the backend logout endpoint
+      await authService.logout()
+    } catch (error) {
+      console.warn('Logout service error:', error)
+    } finally {
+      // Always clear the store state
+      set({
+        user: null,
+        token: null,
+        organization: null,
+        organizationId: null,
+        role: null,
+        isAuthenticated: false,
+        authMethod: null,
+      })
+    }
+  },
+
+  // Quick logout without backend call (for cases where token is already invalid)
+  forceLogout: () => {
+    localStorage.removeItem('authToken')
+    localStorage.removeItem('user')
+    localStorage.removeItem('organization')
+    
+    set({
+      user: null,
+      token: null,
+      organization: null,
+      organizationId: null,
+      role: null,
+      isAuthenticated: false,
+      authMethod: null,
+    })
+  },
 
   switchOrganization: (organization) => set({
     organization,
@@ -44,6 +72,28 @@ export const useAuthStore = create((set) => ({
   updateUser: (updates) => set((state) => ({
     user: { ...state.user, ...updates },
   })),
+
+  // Refresh user data from backend
+  refreshUser: async () => {
+    try {
+      const { user, organization } = await authService.getCurrentUser()
+      const currentState = get()
+      
+      set({
+        user,
+        organization,
+        organizationId: organization?.id,
+        role: user?.role,
+      })
+      
+      return { user, organization }
+    } catch (error) {
+      console.error('Failed to refresh user data:', error)
+      // If refresh fails, logout the user
+      get().forceLogout()
+      throw error
+    }
+  },
 }))
 
 // create hard coded admin user for testing

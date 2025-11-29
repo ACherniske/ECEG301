@@ -21,10 +21,17 @@ export const UserProfileMenu = ({ orgId }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleLogout = () => {
-    authService.logout()
-    logout()
-    navigate('/login')
+  const handleLogout = async () => {
+    try {
+      setIsOpen(false)
+      // Use the logout method from the auth store which handles backend call
+      await logout()
+      navigate('/login')
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Force logout even if backend call fails
+      navigate('/login')
+    }
   }
 
   const getInitials = (firstName, lastName) => {

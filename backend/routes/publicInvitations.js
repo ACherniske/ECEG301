@@ -1,6 +1,9 @@
 import express from 'express'
 import { getSheets } from '../config/googleSheets.js'
 import { SHEET_ID, RANGES, PROVIDER_ACCOUNTS_SHEET } from '../constants/sheetConfig.js'
+import { generateToken } from '../utils/jwtUtils.js'
+import { hashPassword } from '../utils/passwordUtils.js'
+import { organizationService } from '../services/organizationService.js'
 
 const router = express.Router()
 const INVITATIONS_SHEET = 'Invitations'
@@ -63,6 +66,19 @@ router.get('/accept-invitation/:token', async (req, res) => {
       console.log(`Invitation expired on ${invitation.expiresAt}`)
       return res.status(400).json({ error: 'Invitation has expired' })
     }
+
+    // Get organization name
+    let organizationName = 'Healthcare Organization'
+    try {
+      const org = await organizationService.getOrganization(invitation.orgId)
+      if (org) {
+        organizationName = org.name
+      }
+    } catch (error) {
+      console.warn('Could not fetch organization name:', error.message)
+    }
+
+    invitation.organizationName = organizationName
 
     console.log(`Returning valid invitation for ${invitation.email}`)
     res.json(invitation)
@@ -137,7 +153,10 @@ router.post('/accept-invitation/:token', async (req, res) => {
       ? (Math.max(...existingUserIds) + 1).toString()
       : '1'
 
-    // TODO: Hash password properly in production - for now store as plain text for development
+    // Hash the password before storing
+    const hashedPassword = await hashPassword(password)
+
+    // TODO: Hash password properly in production - now using bcrypt
     const userValues = [
       invitationRow[1], // orgId
       newUserId,
@@ -147,7 +166,7 @@ router.post('/accept-invitation/:token', async (req, res) => {
       invitationRow[5], // role
       'active',
       new Date().toISOString().split('T')[0], // createdAt
-      password // Store password (TODO: hash in production)
+      hashedPassword // Store hashed password
     ]
 
     // Add user to ProviderAccounts sheet
@@ -176,13 +195,32 @@ router.post('/accept-invitation/:token', async (req, res) => {
       email: invitationRow[2],
       firstName: invitationRow[3],
       lastName: invitationRow[4],
-      role: invitationRow[5]
+      role: invitationRow[5],
+      status: 'active',
+      organizationId: invitationRow[1]
     }
 
-    const organization = {
+    // Get organization data
+    let organization = {
       id: invitationRow[1],
-      name: 'Healthcare Organization' // TODO: Fetch actual name
+      name: 'Healthcare Organization',
+      address: '',
+      phone: '',
+      email: '',
+      status: 'active'
     }
+
+    try {
+      const org = await organizationService.getOrganization(invitationRow[1])
+      if (org) {
+        organization = org
+      }
+    } catch (error) {
+      console.warn('Could not fetch organization data:', error.message)
+    }
+
+    // Generate JWT token
+    const jwtToken = generateToken(user, organization)
 
     console.log(`Created user account for ${invitationRow[2]} in org ${invitationRow[1]}`)
 
@@ -191,7 +229,7 @@ router.post('/accept-invitation/:token', async (req, res) => {
       message: 'Account created successfully',
       user,
       organization,
-      token: 'dev-token' // TODO: Return actual JWT
+      token: jwtToken
     })
   } catch (error) {
     console.error('Error completing invitation:', error)

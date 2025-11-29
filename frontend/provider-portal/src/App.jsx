@@ -34,18 +34,40 @@ function OrgRoute({ children }) {
 
 function AppRoutes() {
   const [loading, setLoading] = useState(true)
-  const { login, isAuthenticated, organizationId } = useAuthStore()
+  const { login, logout, isAuthenticated, organizationId } = useAuthStore()
 
   useEffect(() => {
-    // Initialize auth from stored data
-    const { user, organization } = authService.getStoredUser()
-    const token = localStorage.getItem('authToken')
-
-    if (token && user) {
-      login(user, token, organization, 'local')
+    // Initialize auth from stored data and verify token
+    const initializeAuth = async () => {
+      try {
+        const { user, organization, token } = authService.getStoredUser()
+        
+        if (token && user && organization) {
+          try {
+            // Verify token is still valid by getting current user info
+            const currentUserData = await authService.getCurrentUser()
+            
+            // Login with verified user data
+            login(currentUserData.user, token, currentUserData.organization, 'local')
+          } catch (error) {
+            console.warn('Token verification failed:', error.message)
+            // Clear invalid data
+            logout()
+            localStorage.removeItem('authToken')
+            localStorage.removeItem('user')
+            localStorage.removeItem('organization')
+          }
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error)
+        logout()
+      } finally {
+        setLoading(false)
+      }
     }
-    setLoading(false)
-  }, [login])
+
+    initializeAuth()
+  }, [login, logout])
 
   if (loading) {
     return (
