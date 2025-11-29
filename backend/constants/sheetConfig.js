@@ -5,11 +5,11 @@ export const APPOINTMENTS_SHEET = process.env.APPOINTMENTS_SHEET || 'Appointment
 export const DRIVER_ACCOUNTS_SHEET = process.env.DRIVER_ACCOUNTS_SHEET || 'DriverAccounts'
 export const INVITATIONS_SHEET = process.env.INVITATIONS_SHEET || 'Invitations'
 export const PROVIDER_ACCOUNTS_SHEET = process.env.PROVIDER_ACCOUNTS_SHEET || 'ProviderAccounts'
-export const ORGANIZATIONS_SHEET = process.env.ORGANIZATIONS_SHEET || 'Organizations' // New sheet
+export const ORGANIZATIONS_SHEET = process.env.ORGANIZATIONS_SHEET || 'Organizations'
 
 export const RANGES = {
     RIDES: 'A:P',
-    PATIENTS: 'A:G',
+    PATIENTS: 'A:H',
     APPOINTMENTS: 'A:H',
     DRIVERS: 'A:F',
     INVITATIONS: 'A:I',
@@ -17,7 +17,22 @@ export const RANGES = {
     ORGANIZATIONS: 'A:F'
 }
 
-export const VALID_STATUSES = ['pending', 'confirmed', 'completed', 'cancelled']
-export const VALID_ROLES = ['provider', 'staff', 'admin', 'dev']
+export const VALID_STATUSES = [
+    'pending',      // Awaiting patient confirmation
+    'confirmed',    // Confirmed by patient
+    'claimed',      // Driver has claimed the ride
+    'in route',     // Driver is on the way to pickup
+    'in transit',   // Patient is in the vehicle
+    'arrived',      // Arrived at destination
+    'completed',    // Ride fully completed
+    'cancelled'     // Ride cancelled
+]
+
+export const VALID_ROLES = [
+    'developer',    // Full system access
+    'administrator', // Organization admin access
+    'staff'         // Basic staff access (can schedule rides)
+]
+
 export const VALID_INVITATION_STATUSES = ['pending', 'accepted', 'revoked', 'expired']
 export const VALID_ORG_STATUSES = ['active', 'inactive', 'suspended']

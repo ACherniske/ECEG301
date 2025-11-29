@@ -1,9 +1,53 @@
 import express from 'express'
 import { getSheets } from '../config/googleSheets.js'
-import { SHEET_ID, RIDES_SHEET, APPOINTMENTS_SHEET, RANGES, VALID_STATUSES } from '../constants/sheetConfig.js'
+import { SHEET_ID, RIDES_SHEET, APPOINTMENTS_SHEET, PATIENTS_SHEET, RANGES, VALID_STATUSES } from '../constants/sheetConfig.js'
 import { authenticateToken } from '../middleware/auth.js'
+import { emailService } from '../services/emailService.js'
+import { generateConfirmationToken, createConfirmationData } from '../utils/tokenUtils.js'
 
 const router = express.Router()
+
+// Helper function to get patient email from EHR sheet
+const getPatientEmail = async (patientId) => {
+  try {
+    const sheets = getSheets()
+    
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${PATIENTS_SHEET}!${RANGES.PATIENTS}`,
+    })
+
+    const rows = response.data.values || []
+    
+    // Find patient by ID
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i]
+      if (row[1] === patientId) { // Column B = Patient ID (0-indexed, so B = 1)
+        return row[7] || null // Column H = Email (0-indexed, so H = 7)
+      }
+    }
+    
+    return null
+  } catch (error) {
+    console.error('Error fetching patient email:', error)
+    return null
+  }
+}
+
+// Helper function to store confirmation token (you might want to use a database instead)
+const confirmationTokens = new Map()
+
+const storeConfirmationToken = (rideId, token) => {
+  const confirmationData = createConfirmationData(rideId, token)
+  confirmationTokens.set(token, confirmationData)
+  
+  // Clean up expired tokens periodically
+  setTimeout(() => {
+    confirmationTokens.delete(token)
+  }, 48 * 60 * 60 * 1000) // 48 hours
+  
+  return confirmationData
+}
 
 // Helper function to check if appointment is in the past
 const isAppointmentInPast = (appointmentDate, appointmentTime) => {
@@ -121,7 +165,7 @@ router.get('/:orgId/rides', authenticateToken, async (req, res) => {
     }
 })
 
-// POST /api/org/:orgId/rides - Create a new ride with validation
+// POST /api/org/:orgId/rides - Create a new ride with email notification
 router.post('/:orgId/rides', authenticateToken, async (req, res) => {
   try {
     const { orgId } = req.params
@@ -173,6 +217,10 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       })
     }
 
+    // Get patient email for notification
+    const patientEmail = await getPatientEmail(rideData.patientId)
+    console.log(`Patient email for ${rideData.patientId}:`, patientEmail)
+
     // If validation passes, proceed with ride creation
     const sheets = getSheets()
 
@@ -195,19 +243,23 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       ? (Math.max(...existingIds) + 1).toString()
       : '1'
 
-    // Prepare ride data with defaults - Updated column mapping
+    // Generate confirmation token
+    const confirmationToken = generateConfirmationToken()
+    storeConfirmationToken(newId, confirmationToken)
+
+    // Prepare ride data with defaults
     const rideValues = [
       orgId, // A
       newId, // B
       rideData.patientName || '', // C
       rideData.patientId || '', // D
       rideData.appointmentDate || '', // E
-      rideData.appointmentId || '', // F - New appointment ID
+      rideData.appointmentId || '', // F
       '', // G - pickupTime - empty until assigned
       rideData.roundTrip === true || rideData.roundTrip === 'true' ? 'true' : 'false', // H
       rideData.appointmentTime || '', // I
       rideData.providerLocation || rideData.appointmentLocation || '', // J
-      'pending', // K - status
+      'pending', // K - status (starts as pending, changes to confirmed after email confirmation)
       rideData.notes || '', // L
       rideData.pickupLocation || '', // M
       rideData.driverName || '', // N
@@ -231,10 +283,12 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       orgId,
       patientId: rideData.patientId,
       patientName: rideData.patientName,
+      patientEmail: patientEmail,
       appointmentDate: rideData.appointmentDate,
       appointmentId: rideData.appointmentId,
       appointmentTime: rideData.appointmentTime,
       providerLocation: rideData.providerLocation || rideData.appointmentLocation,
+      providerName: rideData.providerName,
       pickupLocation: rideData.pickupLocation,
       notes: rideData.notes,
       pickupTime: '',
@@ -243,7 +297,39 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       driverPlate: rideData.driverPlate,
       driverCar: rideData.driverCar,
       status: 'pending',
+      confirmationToken: confirmationToken,
       createdAt: new Date().toISOString()
+    }
+
+    // Send email notification if patient has email
+    if (patientEmail) {
+      try {
+        console.log('Sending ride confirmation email to:', patientEmail)
+        const emailResult = await emailService.sendPatientConfirmationEmail(
+          patientEmail,
+          rideData.patientName,
+          ride
+        )
+        
+        if (emailResult.success) {
+          console.log(`Email notification sent successfully to ${patientEmail}`)
+          ride.emailSent = true
+          ride.emailMessageId = emailResult.messageId
+          ride.confirmationUrl = emailResult.confirmationUrl
+        } else {
+          console.error('Failed to send email notification:', emailResult.error)
+          ride.emailSent = false
+          ride.emailError = emailResult.error
+        }
+      } catch (emailError) {
+        console.error('Error sending ride confirmation email:', emailError)
+        ride.emailSent = false
+        ride.emailError = emailError.message
+      }
+    } else {
+      console.log('No email found for patient, skipping email notification')
+      ride.emailSent = false
+      ride.emailError = 'No email address found for patient'
     }
 
     console.log(`Created ride ${newId} for org ${orgId}`)
@@ -251,6 +337,139 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error creating ride:', error)
     res.status(500).json({ error: error.message })
+  }
+})
+
+// GET /api/rides/:rideId/details - Get ride details for confirmation (public endpoint)
+router.get('/rides/:rideId/details', async (req, res) => {
+  try {
+    const { rideId } = req.params
+    const { token } = req.query
+
+    if (!token) {
+      return res.status(400).json({ error: 'Confirmation token is required' })
+    }
+
+    // Validate token
+    const confirmationData = confirmationTokens.get(token)
+    if (!confirmationData) {
+      return res.status(400).json({ error: 'Invalid or expired confirmation token' })
+    }
+
+    if (confirmationData.rideId !== rideId) {
+      return res.status(400).json({ error: 'Token does not match ride ID' })
+    }
+
+    if (new Date() > confirmationData.expiresAt) {
+      confirmationTokens.delete(token)
+      return res.status(400).json({ error: 'Confirmation token has expired' })
+    }
+
+    // Fetch ride details from sheet
+    const sheets = getSheets()
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${RIDES_SHEET}!${RANGES.RIDES}`,
+    })
+
+    const rows = response.data.values || []
+    const rideRow = rows.slice(1).find(row => row[1] === rideId)
+    
+    if (!rideRow) {
+      return res.status(404).json({ error: 'Ride not found' })
+    }
+
+    const ride = {
+      id: rideRow[1],
+      patientName: rideRow[2],
+      appointmentDate: rideRow[4],
+      appointmentTime: rideRow[8],
+      pickupLocation: rideRow[12],
+      providerLocation: rideRow[9],
+      providerName: rideRow[13] || '',
+      roundTrip: rideRow[7] === 'true',
+      notes: rideRow[11],
+      status: rideRow[10]
+    }
+
+    res.json(ride)
+  } catch (error) {
+    console.error('Error fetching ride details:', error)
+    res.status(500).json({ error: 'Failed to fetch ride details' })
+  }
+})
+
+// POST /api/rides/:rideId/confirm - Confirm ride (public endpoint)
+router.post('/rides/:rideId/confirm', async (req, res) => {
+  try {
+    const { rideId } = req.params
+    const { token } = req.body
+
+    if (!token) {
+      return res.status(400).json({ error: 'Confirmation token is required' })
+    }
+
+    // Validate token
+    const confirmationData = confirmationTokens.get(token)
+    if (!confirmationData) {
+      return res.status(400).json({ error: 'Invalid or expired confirmation token' })
+    }
+
+    if (confirmationData.rideId !== rideId) {
+      return res.status(400).json({ error: 'Token does not match ride ID' })
+    }
+
+    if (new Date() > confirmationData.expiresAt) {
+      confirmationTokens.delete(token)
+      return res.status(400).json({ error: 'Confirmation token has expired' })
+    }
+
+    // Update ride status to 'confirmed'
+    const sheets = getSheets()
+    
+    // Get current ride data
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${RIDES_SHEET}!${RANGES.RIDES}`,
+    })
+
+    const rows = response.data.values || []
+    let rowIndex = -1
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][1] === rideId) {
+        rowIndex = i + 1 // Sheet is 1-indexed
+        break
+      }
+    }
+
+    if (rowIndex === -1) {
+      return res.status(404).json({ error: 'Ride not found' })
+    }
+
+    // Check if already confirmed
+    if (rows[rowIndex - 1][10] === 'confirmed') {
+      return res.status(400).json({ error: 'Ride has already been confirmed' })
+    }
+
+    // Update status to 'confirmed'
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${RIDES_SHEET}!K${rowIndex}`, // Status column (K)
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [['confirmed']]
+      }
+    })
+
+    // Remove token after successful confirmation
+    confirmationTokens.delete(token)
+
+    console.log(`Ride ${rideId} confirmed by patient`)
+    res.json({ success: true, message: 'Ride confirmed successfully' })
+  } catch (error) {
+    console.error('Error confirming ride:', error)
+    res.status(500).json({ error: 'Failed to confirm ride' })
   }
 })
 
@@ -366,6 +585,139 @@ router.patch('/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
         console.error('Error updating ride:', error)
         res.status(500).json({ error: error.message })
     }
+})
+
+// GET /api/rides/:rideId/details - Get ride details for confirmation (public endpoint)
+router.get('/rides/:rideId/details', async (req, res) => {
+  try {
+    const { rideId } = req.params
+    const { token } = req.query
+
+    if (!token) {
+      return res.status(400).json({ error: 'Confirmation token is required' })
+    }
+
+    // Validate token
+    const confirmationData = confirmationTokens.get(token)
+    if (!confirmationData) {
+      return res.status(400).json({ error: 'Invalid or expired confirmation token' })
+    }
+
+    if (confirmationData.rideId !== rideId) {
+      return res.status(400).json({ error: 'Token does not match ride ID' })
+    }
+
+    if (new Date() > confirmationData.expiresAt) {
+      confirmationTokens.delete(token)
+      return res.status(400).json({ error: 'Confirmation token has expired' })
+    }
+
+    // Fetch ride details from sheet
+    const sheets = getSheets()
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${RIDES_SHEET}!${RANGES.RIDES}`,
+    })
+
+    const rows = response.data.values || []
+    const rideRow = rows.slice(1).find(row => row[1] === rideId)
+    
+    if (!rideRow) {
+      return res.status(404).json({ error: 'Ride not found' })
+    }
+
+    const ride = {
+      id: rideRow[1],
+      patientName: rideRow[2],
+      appointmentDate: rideRow[4],
+      appointmentTime: rideRow[8],
+      pickupLocation: rideRow[12],
+      providerLocation: rideRow[9],
+      providerName: rideRow[13] || '',
+      roundTrip: rideRow[7] === 'true',
+      notes: rideRow[11],
+      status: rideRow[10]
+    }
+
+    res.json(ride)
+  } catch (error) {
+    console.error('Error fetching ride details:', error)
+    res.status(500).json({ error: 'Failed to fetch ride details' })
+  }
+})
+
+// POST /api/rides/:rideId/confirm - Confirm ride (public endpoint)
+router.post('/rides/:rideId/confirm', async (req, res) => {
+  try {
+    const { rideId } = req.params
+    const { token } = req.body
+
+    if (!token) {
+      return res.status(400).json({ error: 'Confirmation token is required' })
+    }
+
+    // Validate token
+    const confirmationData = confirmationTokens.get(token)
+    if (!confirmationData) {
+      return res.status(400).json({ error: 'Invalid or expired confirmation token' })
+    }
+
+    if (confirmationData.rideId !== rideId) {
+      return res.status(400).json({ error: 'Token does not match ride ID' })
+    }
+
+    if (new Date() > confirmationData.expiresAt) {
+      confirmationTokens.delete(token)
+      return res.status(400).json({ error: 'Confirmation token has expired' })
+    }
+
+    // Update ride status to 'confirmed'
+    const sheets = getSheets()
+    
+    // Get current ride data
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${RIDES_SHEET}!${RANGES.RIDES}`,
+    })
+
+    const rows = response.data.values || []
+    let rowIndex = -1
+    
+    for (let i = 1; i < rows.length; i++) {
+      if (rows[i][1] === rideId) {
+        rowIndex = i + 1 // Sheet is 1-indexed
+        break
+      }
+    }
+
+    if (rowIndex === -1) {
+      return res.status(404).json({ error: 'Ride not found' })
+    }
+
+    // Check if already confirmed
+    if (rows[rowIndex - 1][10] === 'confirmed') {
+      return res.status(400).json({ error: 'Ride has already been confirmed' })
+    }
+
+    // Update status to 'confirmed'
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${RIDES_SHEET}!K${rowIndex}`, // Status column (K)
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [['confirmed']]
+      }
+    })
+
+    // Remove token after successful confirmation
+    confirmationTokens.delete(token)
+
+    console.log(`Ride ${rideId} confirmed by patient`)
+    res.json({ success: true, message: 'Ride confirmed successfully' })
+  } catch (error) {
+    console.error('Error confirming ride:', error)
+    res.status(500).json({ error: 'Failed to confirm ride' })
+  }
 })
 
 export default router

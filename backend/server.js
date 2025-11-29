@@ -54,6 +54,7 @@ app.get('/health', (req, res) => {
 // Public API Routes (no authentication required)
 app.use('/api', invitationRoutes)
 app.use('/api/auth', authRoutes)
+app.use('/api', ridesRoutes)
 
 // Protected API Routes (require authentication)
 app.use('/api/org', userRoutes)

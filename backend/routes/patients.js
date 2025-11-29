@@ -52,7 +52,8 @@ router.get('/:orgId/patients/search', authenticateToken, async (req, res) => {
                     lastName: safeRow[3],
                     dateOfBirth: safeRow[4],
                     phone: safeRow[5],
-                    address: safeRow[6]
+                    address: safeRow[6],
+                    email: safeRow[7]
                 }
             })
 
@@ -87,7 +88,8 @@ router.get('/:orgId/patients/:patientId', authenticateToken, async (req, res) =>
             lastName: patientRow[3],
             dateOfBirth: patientRow[4],
             phone: patientRow[5],
-            address: patientRow[6]
+            address: patientRow[6],
+            email: patientRow[7]
         }
 
         console.log(`Fetched patient ${patientId} for org ${orgId}`)
