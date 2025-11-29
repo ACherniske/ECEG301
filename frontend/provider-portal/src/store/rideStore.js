@@ -51,9 +51,12 @@ export const useRideStore = create((set, get) => ({
             const allRides = await rideService.getRides(orgId)
 
             const todaysConfirmedRides = allRides.filter(ride => {
-                const isConfirmed = ride.status.toLowerCase() === 'confirmed'
+                const isClaimed = ride.status.toLowerCase() === 'claimed' || 
+                                    ride.status.toLowerCase() === 'en route' ||
+                                    ride.status.toLowerCase() === 'in transit' ||
+                                    ride.status.toLowerCase() === 'arrived'
                 const isTodaysRide = isToday(ride.appointmentDate)
-                return isConfirmed && isTodaysRide
+                return isClaimed && isTodaysRide
             })
 
             const sortedRides = sortByAppointmentTime(todaysConfirmedRides).slice(0, 3)
@@ -96,6 +99,7 @@ export const useRideStore = create((set, get) => ({
         
         const awaiting = rides.filter(ride => {
             const isAwaitingDriver = ride.status.toLowerCase() === 'pending' || ride.status.toLowerCase() === 'confirmed'
+
             return isAwaitingDriver
         }).length
 
