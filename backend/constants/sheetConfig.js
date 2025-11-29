@@ -21,7 +21,7 @@ export const VALID_STATUSES = [
     'pending',      // Awaiting patient confirmation
     'confirmed',    // Confirmed by patient
     'claimed',      // Driver has claimed the ride
-    'in route',     // Driver is on the way to pickup
+    'en route',     // Driver is on the way to pickup
     'in transit',   // Patient is in the vehicle
     'arrived',      // Arrived at destination
     'completed',    // Ride fully completed

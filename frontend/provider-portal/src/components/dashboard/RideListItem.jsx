@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, memo } from 'react'
-import { Clock, Calendar, MapPin, User, X, Edit2, Check, X as XIcon, ArrowRightLeft } from 'lucide-react'
+import { Clock, Calendar, MapPin, User, X, Edit2, Check, X as XIcon, ArrowRightLeft, Car, Route, Navigation } from 'lucide-react'
 import { StatusBadge } from '../shared/StatusBadge'
 import { Card } from '../shared/Card'
 
@@ -138,10 +138,10 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
   ])
 
   const statusOptions = [
-    { value: 'pending', label: 'Pending', color: 'yellow' },
-    { value: 'confirmed', label: 'Confirmed', color: 'green' },
-    { value: 'completed', label: 'Completed', color: 'blue' },
-    { value: 'cancelled', label: 'Cancelled', color: 'red' },
+    { value: 'confirmed', label: 'Confirmed', color: 'yellow', description: 'Confirmed by patient' },
+    { value: 'claimed', label: 'Claimed', color: 'green', description: 'Driver has claimed the ride' },
+    { value: 'completed', label: 'Completed', color: 'blue', description: 'Ride fully completed' },
+    { value: 'cancelled', label: 'Cancelled', color: 'red', description: 'Ride cancelled' },
   ]
 
   useEffect(() => {
@@ -252,6 +252,22 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
 
   const handleCardClick = () => {
     setIsExpanded(!isExpanded)
+  }
+
+  // Helper function to get status icon - updated for provider-relevant statuses
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'confirmed':
+        return Check
+      case 'claimed':
+        return User
+      case 'completed':
+        return Check
+      case 'cancelled':
+        return X
+      default:
+        return Clock
+    }
   }
 
   return (
@@ -464,26 +480,31 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
 
             <div className="border-t pt-4">
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Update Status</div>
-              <div className="flex gap-2 flex-wrap">
-                {statusOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleStatusChange(option.value)
-                    }}
-                    disabled={isUpdating || option.value === ride.status}
-                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${
-                      option.value === ride.status
-                        ? 'bg-gray-100 text-gray-600 cursor-default opacity-60'
-                        : isUpdating
-                        ? 'opacity-50 cursor-not-allowed'
-                        : 'bg-blue-500 text-white hover:bg-blue-600 active:scale-95'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {statusOptions.map((option) => {
+                  const StatusIcon = getStatusIcon(option.value)
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleStatusChange(option.value)
+                      }}
+                      disabled={isUpdating || option.value === ride.status}
+                      className={`px-3 py-2 rounded-lg font-medium text-sm transition-all flex items-center gap-2 justify-center ${
+                        option.value === ride.status
+                          ? 'bg-gray-100 text-gray-600 cursor-default opacity-60'
+                          : isUpdating
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'bg-blue-500 text-white hover:bg-blue-600 active:scale-95'
+                      }`}
+                      title={option.description}
+                    >
+                      <StatusIcon size={14} />
+                      <span className="truncate">{option.label}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>
