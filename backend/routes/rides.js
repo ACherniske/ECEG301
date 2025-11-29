@@ -2,7 +2,7 @@ import express from 'express'
 import { getSheets } from '../config/googleSheets.js'
 import { SHEET_ID, RIDES_SHEET, APPOINTMENTS_SHEET, PATIENTS_SHEET, RANGES, VALID_STATUSES } from '../constants/sheetConfig.js'
 import { authenticateToken } from '../middleware/auth.js'
-import { emailService } from '../services/emailService.js'
+import emailService from '../services/emailService.js'
 import { generateConfirmationToken } from '../utils/tokenUtils.js'
 import { storeConfirmationToken } from '../utils/confirmationTokens.js'
 
