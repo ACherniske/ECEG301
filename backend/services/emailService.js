@@ -1,4 +1,8 @@
 import nodemailer from 'nodemailer'
+import dotenv from 'dotenv'
+
+// Load environment variables
+dotenv.config()
 
 class EmailService {
   constructor() {
@@ -7,21 +11,38 @@ class EmailService {
   }
 
   async initializeTransporter() {
+    console.log('=== EMAIL SERVICE INITIALIZATION ===')
+    console.log('process.env.EMAIL_USER:', process.env.EMAIL_USER)
+    console.log('process.env.EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? '[REDACTED]' : 'undefined')
+    
     try {
     // Create a transporter using Gmail SMTP
-      this.transporter = nodemailer.createTransport({
+      const config = {
         service: 'gmail',
         auth: {
-          user: process.env.EMAIL_USER || 'medirideportal@gmail.com',
-          pass: process.env.EMAIL_APP_PASSWORD || 'ihwmwzpcbinjbjqt'
+          user: process.env.EMAIL_USER || 'your-email@gmail.com',
+          pass: process.env.EMAIL_APP_PASSWORD || 'your-gmail-app-password'
+        }
+      }
+      
+      console.log('Creating transporter with config:', {
+        service: config.service,
+        auth: {
+          user: config.auth.user,
+          pass: config.auth.pass ? '[REDACTED]' : 'undefined'
         }
       })
+      
+      this.transporter = nodemailer.createTransport(config)
 
       // Verify connection
+      console.log('Verifying email connection...')
       await this.transporter.verify()
       console.log('Email service initialized successfully')
     } catch (error) {
-      console.error('Failed to initialize email service:', error)
+      console.error('Failed to initialize email service:', error.message)
+      console.error('Full error:', error)
+      this.transporter = null
     }
   }
 
@@ -816,4 +837,4 @@ HIPAA Compliant | Secure Transportation Services
   }
 }
 
-export const emailService = new EmailService()
+export default new EmailService()

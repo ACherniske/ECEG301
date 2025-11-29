@@ -1,6 +1,10 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+
+// Load environment variables FIRST
+dotenv.config()
+
 import authRoutes from './routes/auth.js'
 import ridesRoutes from './routes/rides.js'
 import publicRidesRoutes from './routes/publicRides.js'
@@ -13,10 +17,8 @@ import organizationRoutes from './routes/organizations.js'
 import userRoutes from './routes/users.js'
 import { initializeGoogleSheets, getSheets } from './config/googleSheets.js'
 import { SHEET_ID} from './constants/sheetConfig.js'
-import { emailService } from './services/emailService.js'
+import emailService from './services/emailService.js'
 import { authenticateToken } from './middleware/auth.js'
-
-dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3000

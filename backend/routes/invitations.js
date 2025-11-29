@@ -3,7 +3,7 @@ import express from 'express'
 import { getSheets } from '../config/googleSheets.js'
 import { SHEET_ID, RANGES, PROVIDER_ACCOUNTS_SHEET } from '../constants/sheetConfig.js'
 import { authenticateToken } from '../middleware/auth.js'
-import { emailService } from '../services/emailService.js'
+import emailService from '../services/emailService.js'
 
 const router = express.Router()
 const INVITATIONS_SHEET = 'Invitations'
