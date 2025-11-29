@@ -6,7 +6,7 @@ import { PatientSearchStep } from '../../components/schedule/PatientSearchStep'
 import AppointmentSelectionStep from '../../components/schedule/AppointmentSelectionStep'
 import { TransportationDetailsStep } from '../../components/schedule/TransportationDetailsStep'
 import { Button } from '../../components/shared/Button'
-import { CheckCircle2, AlertCircle } from 'lucide-react'
+import { CheckCircle2, AlertCircle, Mail, MailX, Clock } from 'lucide-react'
 import { rideService } from '../../services/rideService'
 
 export default function OrgScheduleRidePage() {
@@ -24,6 +24,7 @@ export default function OrgScheduleRidePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [emailStatus, setEmailStatus] = useState(null)
 
   const [selectedPatient, setSelectedPatient] = useState(null)
   const [selectedAppointment, setSelectedAppointment] = useState(null)
@@ -36,7 +37,6 @@ export default function OrgScheduleRidePage() {
   // Reset form when page is accessed (fresh start each time)
   useEffect(() => {
     console.log('Schedule ride page mounted/accessed')
-    // Always start fresh when navigating to this page
     setCurrentStep(1)
     setSelectedPatient(null)
     setSelectedAppointment(null)
@@ -47,12 +47,12 @@ export default function OrgScheduleRidePage() {
     })
     setError('')
     setSuccess('')
+    setEmailStatus(null)
     setLoading(false)
   }, [location.pathname])
 
   const handlePatientSelected = (patient) => {
     setSelectedPatient(patient)
-    // Clear subsequent steps when new patient is selected
     setSelectedAppointment(null)
     setFormData({
       pickupLocation: '',
@@ -64,7 +64,6 @@ export default function OrgScheduleRidePage() {
 
   const handleAppointmentSelected = (appointment) => {
     setSelectedAppointment(appointment)
-    // Clear transportation details when new appointment is selected
     setFormData(prev => ({
       ...prev,
       pickupLocation: '',
@@ -77,6 +76,7 @@ export default function OrgScheduleRidePage() {
   const handleSubmit = async () => {
     setError('')
     setSuccess('')
+    setEmailStatus(null)
 
     if (!selectedPatient || !selectedAppointment) {
       setError('Please complete all steps')
@@ -107,7 +107,16 @@ export default function OrgScheduleRidePage() {
         roundTrip: formData.roundTrip === true
       }
 
+      console.log('Submitting ride data:', rideData)
       const response = await rideService.scheduleRide(orgId, rideData)
+      
+      // Set email notification status
+      setEmailStatus({
+        sent: response.emailSent,
+        error: response.emailError,
+        patientEmail: response.patientEmail,
+        confirmationUrl: response.confirmationUrl
+      })
       
       setSuccess('Ride scheduled successfully!')
       
@@ -115,44 +124,32 @@ export default function OrgScheduleRidePage() {
         navigate(`/org/${orgId}/dashboard`, {
           state: {
             message: 'Ride scheduled successfully!',
-            type: 'success'
+            type: 'success',
+            emailStatus: {
+              sent: response.emailSent,
+              error: response.emailError,
+              patientEmail: response.patientEmail
+            }
           }
         })
-      }, 2000)
+      }, 3000)
     } catch (err) {
+      console.error('Ride scheduling error:', err)
       setError(err.message || 'Failed to schedule ride')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleReset = () => {
-    setCurrentStep(1)
-    setSelectedPatient(null)
-    setSelectedAppointment(null)
-    setFormData({
-      pickupLocation: '',
-      pickupTimeOffset: 30,
-      transportationType: 'standard',
-      notes: '',
-      roundTrip: false,
-      returnPickupOffset: 30,
-    })
-    setError('')
-  }
-
   const handleBack = () => {
     if (currentStep > 1) {
-      // Clear data when going back
       if (currentStep === 3) {
-        // Going back from step 3 to 2, clear transportation details
         setFormData({
           pickupLocation: '',
           notes: '',
           roundTrip: false,
         })
       } else if (currentStep === 2) {
-        // Going back from step 2 to 1, clear appointment and transportation
         setSelectedAppointment(null)
         setFormData({
           pickupLocation: '',
@@ -176,7 +173,47 @@ export default function OrgScheduleRidePage() {
               <CheckCircle2 size={32} className="text-green-600" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Ride Scheduled!</h2>
-            <p className="text-gray-600 mb-6">The ride has been successfully scheduled. Redirecting...</p>
+            <p className="text-gray-600 mb-4">The ride has been successfully scheduled.</p>
+            
+            {/* Email Status Display */}
+            {emailStatus && (
+              <div className="mb-6">
+                {emailStatus.sent ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center justify-center gap-2 text-green-600 mb-2">
+                      <Mail size={20} />
+                      <span className="font-medium">Confirmation Email Sent!</span>
+                    </div>
+                    <p className="text-green-700 text-sm">
+                      Patient will receive an email at <strong>{emailStatus.patientEmail}</strong> to confirm their ride.
+                    </p>
+                    {emailStatus.confirmationUrl && (
+                      <p className="text-green-600 text-xs mt-2">
+                        The ride status will change to "confirmed" once the patient confirms via email.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-center justify-center gap-2 text-yellow-600 mb-2">
+                      <MailX size={20} />
+                      <span className="font-medium">Email Not Sent</span>
+                    </div>
+                    <p className="text-yellow-700 text-sm">
+                      {emailStatus.error || 'Unable to send confirmation email to patient.'}
+                    </p>
+                    <p className="text-yellow-600 text-xs mt-2">
+                      Please contact the patient manually to confirm their ride details.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
+              <Clock size={16} />
+              <span>Redirecting to dashboard...</span>
+            </div>
           </div>
         </div>
       </div>
@@ -223,9 +260,17 @@ export default function OrgScheduleRidePage() {
               />
               {selectedPatient && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    <span className="font-semibold">Selected Patient:</span> {selectedPatient.firstName} {selectedPatient.lastName} (ID: {selectedPatient.id})
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-blue-600" />
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Selected Patient:</span> {selectedPatient.firstName} {selectedPatient.lastName} (ID: {selectedPatient.id})
+                    </p>
+                  </div>
+                  {selectedPatient.email && (
+                    <p className="text-xs text-gray-600 mt-1 ml-6">
+                      📧 Confirmation email will be sent to: {selectedPatient.email}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -242,9 +287,12 @@ export default function OrgScheduleRidePage() {
               />
               {selectedAppointment && (
                 <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-gray-700">
-                    <span className="font-semibold">Selected Appointment:</span> {selectedAppointment.appointmentType} on {new Date(selectedAppointment.appointmentDate).toLocaleDateString()} at {selectedAppointment.appointmentTime}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={16} className="text-blue-600" />
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Selected Appointment:</span> {selectedAppointment.appointmentType} on {new Date(selectedAppointment.appointmentDate).toLocaleDateString()} at {selectedAppointment.appointmentTime}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -289,7 +337,7 @@ export default function OrgScheduleRidePage() {
                 onClick={handleSubmit}
                 disabled={loading}
               >
-                {loading ? 'Scheduling...' : 'Schedule Ride'}
+                {loading ? 'Scheduling...' : 'Schedule Ride & Send Confirmation'}
               </Button>
             )}
           </div>

@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { useAuthStore } from './store/authStore'
 import { authService } from './services/authService'
-import { OrgProtectedRoute } from './components/auth/OrgProtectedRoute'
 import LoginPage from './pages/LoginPage'
 import OrgDashboardPage from './pages/org/OrgDashboardPage'
 import OrgSettingsPage from './pages/org/OrgSettingsPage'
@@ -12,7 +11,26 @@ import OrgScheduleRidePage from './pages/org/OrgScheduleRidePage'
 import OrgRideHistoryPage from './pages/org/OrgRideHistoryPage'
 import OrgAdminPage from './pages/org/OrgAdminPage'
 import AcceptInvitationPage from './pages/AcceptInvitationPage'
+import RideConfirmationPage from './pages/RideConfirmationPage'
+
 import './index.css'
+
+// Protected route wrapper
+function ProtectedRoute({ children }) {
+  const { isAuthenticated } = useAuthStore()
+  return isAuthenticated ? children : <Navigate to="/login" />
+}
+
+// Organization route wrapper
+function OrgRoute({ children }) {
+  const { user, organizationId } = useAuthStore()
+  
+  if (!user || !organizationId) {
+    return <Navigate to="/login" />
+  }
+  
+  return children
+}
 
 function AppRoutes() {
   const [loading, setLoading] = useState(true)
@@ -48,64 +66,62 @@ function AppRoutes() {
           path="/login"
           element={isAuthenticated ? <Navigate to={`/org/${organizationId}/dashboard`} /> : <LoginPage />}
         />
-
-        {/* Redirect to organization dashboard if trying to access old routes */}
         <Route
-          path="/dashboard"
-          element={isAuthenticated && organizationId ? <Navigate to={`/org/${organizationId}/dashboard`} /> : <Navigate to="/login" />}
+          path="/accept-invitation"
+          element={<AcceptInvitationPage />}
+        />
+        <Route
+          path="/confirm-ride"
+          element={<RideConfirmationPage />}
         />
 
         {/* Organization Routes */}
         <Route
           path="/org/:orgId/dashboard"
           element={
-            <OrgProtectedRoute>
+            <OrgRoute>
               <OrgDashboardPage />
-            </OrgProtectedRoute>
+            </OrgRoute>
           }
         />
         <Route
           path="/org/:orgId/schedule-ride"
           element={
-            <OrgProtectedRoute>
+            <OrgRoute>
               <OrgScheduleRidePage />
-            </OrgProtectedRoute>
+            </OrgRoute>
           }
         />
         <Route
           path="/org/:orgId/ride-history"
           element={
-            <OrgProtectedRoute>
+            <OrgRoute>
               <OrgRideHistoryPage />
-            </OrgProtectedRoute>
+            </OrgRoute>
+          }
+        />
+        <Route
+          path="/org/:orgId/admin"
+          element={
+            <OrgRoute>
+              <OrgAdminPage />
+            </OrgRoute>
           }
         />
         <Route
           path="/org/:orgId/profile"
           element={
-            <OrgProtectedRoute>
+            <OrgRoute>
               <OrgProfilePage />
-            </OrgProtectedRoute>
+            </OrgRoute>
           }
         />
         <Route
           path="/org/:orgId/settings"
           element={
-            <OrgProtectedRoute>
+            <OrgRoute>
               <OrgSettingsPage />
-            </OrgProtectedRoute>
-          }
-        />
-        <Route
-          path="/accept-invitation"
-          element={<AcceptInvitationPage />}
-        />
-        <Route
-          path="/org/:orgId/admin"
-          element={
-            <OrgProtectedRoute>
-              <OrgAdminPage />
-            </OrgProtectedRoute>
+            </OrgRoute>
           }
         />
 
