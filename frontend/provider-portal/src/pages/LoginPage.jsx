@@ -1,11 +1,13 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
+import { Eye, EyeOff, Mail, Lock, ArrowRight, AlertCircle } from 'lucide-react'
 import { Button } from '../components/shared/Button'
 import { useAuthStore } from '../store/authStore'
+import { authService } from '../services/authService'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { login } = useAuthStore()
   const [formData, setFormData] = useState({
     email: '',
@@ -14,9 +16,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  // API base URL
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+  
+  // Check for session expiration message
+  useEffect(() => {
+    if (searchParams.get('expired') === 'true') {
+      setError('Your session has expired. Please log in again.')
+    }
+  }, [searchParams])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -26,28 +32,15 @@ export default function LoginPage() {
     try {
       console.log('Attempting login with:', { email: formData.email })
       
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        })
-      })
-
-      console.log('Login response status:', response.status)
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Login failed')
-      }
-
-      const { user, organization, token } = await response.json()
+      // Use the authService instead of direct fetch
+      const { user, organization, token } = await authService.loginLocal(
+        formData.email, 
+        formData.password
+      )
+      
       console.log('Login successful:', { user, organization })
       
-      // Store auth data
+      // Store auth data in Zustand store
       login(user, token, organization, 'local')
       
       // Navigate to dashboard

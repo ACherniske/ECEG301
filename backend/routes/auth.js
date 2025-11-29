@@ -1,7 +1,9 @@
 import express from 'express'
-import { getSheets } from '../config/googleSheets.js'
-import { SHEET_ID, RANGES, PROVIDER_ACCOUNTS_SHEET } from '../constants/sheetConfig.js'
 import { organizationService } from '../services/organizationService.js'
+import { userService } from '../services/userService.js'
+import { generateToken, verifyToken, extractTokenFromHeader } from '../utils/jwtUtils.js'
+import { comparePassword, hashPassword } from '../utils/passwordUtils.js'
+import { authenticateToken } from '../middleware/auth.js'
 
 const router = express.Router()
 
@@ -14,60 +16,22 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' })
     }
 
-    const sheets = getSheets()
+    // Verify user credentials using the user service
+    const user = await userService.verifyUserCredentials(email, password)
     
-    // Get all users from ProviderAccounts sheet
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: SHEET_ID,
-      range: `${PROVIDER_ACCOUNTS_SHEET}!${RANGES.PROVIDER_ACCOUNTS}`,
-    })
-
-    const rows = response.data.values || []
-    
-    if (rows.length <= 1) {
+    if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' })
     }
 
-    // Find user by email
-    let userRow = null
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i]
-      if (row[2]?.toLowerCase() === email.toLowerCase() && row[6] === 'active') {
-        userRow = row
-        break
-      }
-    }
-
-    if (!userRow) {
-      return res.status(401).json({ error: 'Invalid credentials' })
-    }
-
-    // TODO: In production, implement proper password hashing and verification
-    // For now, we'll use a simple check or accept any password for development
-    // if (userRow[8] !== hashedPassword) {
-    //   return res.status(401).json({ error: 'Invalid credentials' })
-    // }
-
-    const user = {
-      id: userRow[1],
-      email: userRow[2],
-      firstName: userRow[3],
-      lastName: userRow[4],
-      role: userRow[5],
-      status: userRow[6]
-    }
-
-    // Fetch organization data using the service
+    // Fetch organization data
     let organization
     try {
-      const orgId = userRow[0] // Organization ID from user row
-      organization = await organizationService.getOrganization(orgId)
+      organization = await organizationService.getOrganization(user.organizationId)
       
       if (!organization) {
-        // Fallback if organization not found
-        console.warn(`Organization ${orgId} not found, using fallback`)
+        console.warn(`Organization ${user.organizationId} not found, using fallback`)
         organization = {
-          id: orgId,
+          id: user.organizationId,
           name: 'Healthcare Organization',
           address: '',
           phone: '',
@@ -77,9 +41,8 @@ router.post('/login', async (req, res) => {
       }
     } catch (error) {
       console.error('Error fetching organization:', error)
-      // Fallback organization data
       organization = {
-        id: userRow[0],
+        id: user.organizationId,
         name: 'Healthcare Organization',
         address: '',
         phone: '',
@@ -90,12 +53,15 @@ router.post('/login', async (req, res) => {
 
     console.log(`User ${email} from organization ${organization.name} logged in successfully`)
 
+    // Generate JWT token
+    const token = generateToken(user, organization)
+
     res.json({
       success: true,
       message: 'Login successful',
       user,
       organization,
-      token: 'dev-token' // TODO: Generate actual JWT token
+      token
     })
   } catch (error) {
     console.error('Login error:', error)
@@ -104,68 +70,86 @@ router.post('/login', async (req, res) => {
 })
 
 // POST /api/auth/logout - Logout (for now just a placeholder)
-router.post('/logout', (req, res) => {
-  // TODO: Implement token invalidation if using JWTs
+router.post('/logout', authenticateToken, (req, res) => {
+  // With stateless JWT tokens, logout is typically handled client-side
+  // by removing the token from storage. For additional security, you could
+  // implement a token blacklist here.
   res.json({ success: true, message: 'Logged out successfully' })
 })
 
 // GET /api/auth/me - Get current user info (requires token)
-router.get('/me', async (req, res) => {
+router.get('/me', authenticateToken, async (req, res) => {
   try {
-    // TODO: Implement proper token verification
-    const authHeader = req.headers.authorization
-    const token = authHeader && authHeader.split(' ')[1]
+    // Get user with organization data using the service
+    const userWithOrg = await userService.getUserWithOrganization(req.user.id)
     
-    if (!token || token !== 'dev-token') {
-      return res.status(401).json({ error: 'Unauthorized' })
+    if (!userWithOrg) {
+      return res.status(404).json({ error: 'User not found' })
     }
 
-    // For development, return mock user data with real organization lookup
-    // In production, decode JWT and fetch user from database
-    try {
-      const organization = await organizationService.getOrganization('org1')
-      
-      res.json({
-        user: {
-          id: '1',
-          email: 'user@example.com',
-          firstName: 'Test',
-          lastName: 'User',
-          role: 'provider'
-        },
-        organization: organization || {
-          id: 'org1',
-          name: 'Healthcare Organization',
-          address: '',
-          phone: '',
-          email: '',
-          status: 'active'
-        }
-      })
-    } catch (error) {
-      console.error('Error in /me endpoint:', error)
-      // Fallback response
-      res.json({
-        user: {
-          id: '1',
-          email: 'user@example.com',
-          firstName: 'Test',
-          lastName: 'User',
-          role: 'provider'
-        },
-        organization: {
-          id: 'org1',
-          name: 'Healthcare Organization',
-          address: '',
-          phone: '',
-          email: '',
-          status: 'active'
-        }
-      })
-    }
+    res.json(userWithOrg)
   } catch (error) {
     console.error('Auth me error:', error)
     res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/auth/change-password - Change user password
+router.post('/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    const user = req.user
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' })
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long' })
+    }
+
+    // Verify current password
+    const userData = await userService.verifyUserCredentials(user.email, currentPassword)
+    if (!userData) {
+      return res.status(400).json({ error: 'Current password is incorrect' })
+    }
+
+    // Update password using user service
+    await userService.updatePassword(user.id, newPassword)
+
+    console.log(`Password changed successfully for user ${user.email}`)
+    res.json({ success: true, message: 'Password changed successfully' })
+  } catch (error) {
+    console.error('Change password error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/auth/verify-token - Verify if a token is still valid
+router.post('/verify-token', (req, res) => {
+  try {
+    const { token } = req.body
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' })
+    }
+
+    const decoded = verifyToken(token)
+    res.json({ 
+      valid: true, 
+      expiresAt: new Date(decoded.exp * 1000).toISOString(),
+      user: {
+        id: decoded.userId,
+        email: decoded.email,
+        role: decoded.role,
+        organizationId: decoded.organizationId
+      }
+    })
+  } catch (error) {
+    res.json({ 
+      valid: false, 
+      error: error.message 
+    })
   }
 })
 
