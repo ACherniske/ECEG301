@@ -120,7 +120,7 @@ router.get('/:orgId/rides', authenticateToken, async (req, res) => {
         const dataRows = rows.slice(1)
         const rides = dataRows.map((row, index) => {
             const safeRow = [...row]
-            while (safeRow.length < 16) safeRow.push('') // Updated to 16 columns (A-P)
+            while (safeRow.length < 17) safeRow.push('') // Updated to 17 columns (A-Q)
             
             return {
                 orgId: safeRow[0] || '',
@@ -136,9 +136,10 @@ router.get('/:orgId/rides', authenticateToken, async (req, res) => {
                 status: safeRow[10] || 'pending',
                 notes: safeRow[11] || '',
                 pickupLocation: safeRow[12] || '',
-                driverName: safeRow[13] || '',
-                driverPlate: safeRow[14] || '',
-                driverCar: safeRow[15] || '',
+                driverId: safeRow[13] || '', // Column N - Driver ID
+                driverName: safeRow[14] || '',
+                driverPlate: safeRow[15] || '',
+                driverCar: safeRow[16] || '', // Column Q - Driver Car
                 rowIndex: index + 2
             }
         }).filter(ride => ride.patientName && ride.orgId === orgId)
@@ -248,9 +249,10 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       'pending', // K - status (starts as pending, changes to confirmed after email confirmation)
       rideData.notes || '', // L
       rideData.pickupLocation || '', // M
-      rideData.driverName || '', // N
-      rideData.driverPlate || '', // O
-      rideData.driverCar || '', // P
+      rideData.driverId || '', // N - Driver ID (new field)
+      rideData.driverName || '', // O - Driver Name (shifted)
+      rideData.driverPlate || '', // P - Driver License Plate (shifted)
+      rideData.driverCar || '', // Q - Driver Car
     ]
 
     // Add ride to sheet
@@ -279,6 +281,7 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       notes: rideData.notes,
       pickupTime: '',
       roundTrip: rideData.roundTrip === true || rideData.roundTrip === 'true',
+      driverId: rideData.driverId,
       driverName: rideData.driverName,
       driverPlate: rideData.driverPlate,
       driverCar: rideData.driverCar,
@@ -374,9 +377,10 @@ router.patch('/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
             appointmentTime, 
             providerLocation, 
             notes, 
-            pickupLocation, 
+            pickupLocation,
+            driverId,
             driverName, 
-            driverPlate, 
+            driverPlate,
             driverCar, 
             rowIndex 
         } = req.body
@@ -386,7 +390,7 @@ router.patch('/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
         const sheets = getSheets()
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!A${rowIndex}:P${rowIndex}`, // Updated to P
+            range: `${RIDES_SHEET}!A${rowIndex}:Q${rowIndex}`, // Updated to Q
         })
 
         const rideRow = response.data.values?.[0]
@@ -404,9 +408,10 @@ router.patch('/:orgId/rides/:rideId', authenticateToken, async (req, res) => {
             { field: 'providerLocation', column: 'J' }, // Shifted from I
             { field: 'notes', column: 'L' }, // Shifted from K
             { field: 'pickupLocation', column: 'M' }, // Shifted from L
-            { field: 'driverName', column: 'N' }, // Shifted from M
-            { field: 'driverPlate', column: 'O' }, // Shifted from N
-            { field: 'driverCar', column: 'P' } // Shifted from O
+            { field: 'driverId', column: 'N' }, // New driver ID field
+            { field: 'driverName', column: 'O' }, // Shifted from N
+            { field: 'driverPlate', column: 'P' }, // Shifted from O
+            { field: 'driverCar', column: 'Q' } // New driver car field
         ]
 
         fieldMappings.forEach(({ field, column }) => {
