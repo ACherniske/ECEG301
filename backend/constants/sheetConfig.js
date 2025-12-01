@@ -8,10 +8,10 @@ export const PROVIDER_ACCOUNTS_SHEET = process.env.PROVIDER_ACCOUNTS_SHEET || 'P
 export const ORGANIZATIONS_SHEET = process.env.ORGANIZATIONS_SHEET || 'Organizations'
 
 export const RANGES = {
-    RIDES: 'A:P',
+    RIDES: 'A:Q',
     PATIENTS: 'A:H',
     APPOINTMENTS: 'A:H',
-    DRIVERS: 'A:F',
+    DRIVERS: 'A:G', // Updated to include driver ID, name, car make, model, license plate, status
     INVITATIONS: 'A:I',
     PROVIDER_ACCOUNTS: 'A:I',
     ORGANIZATIONS: 'A:F'
