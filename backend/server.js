@@ -30,9 +30,29 @@ console.log('- EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set')
 console.log('- EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? 'Set' : 'Not set')
 
 // Middleware
+const allowedOrigins = [
+    'http://localhost:5173',
+    'https://acherniske.github.io',
+    'https://d26gevognsrobh.cloudfront.net',
+    process.env.FRONTEND_URL
+].filter(Boolean)
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowedHeaders: [
+        'Origin',
+        'X-Requested-With', 
+        'Content-Type', 
+        'Accept', 
+        'Authorization',
+        'Cache-Control',
+        'X-HTTP-Method-Override'
+    ],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    preflightContinue: false,
+    optionsSuccessStatus: 200
 }))
 app.use(express.json())
 
@@ -45,7 +65,15 @@ setTimeout(() => {
     console.log('Email service status:', emailService.transporter ? 'Ready' : 'Not ready')
 }, 1000) // Give it a moment to initialize
 
-// Health check
+// Health check routes (AWS EB checks root path by default)
+app.get('/', (req, res) => {
+    res.json({ 
+        status: 'healthy',
+        message: 'Provider Portal API is running',
+        timestamp: new Date().toISOString()
+    })
+})
+
 app.get('/health', (req, res) => {
     const sheets = getSheets()
     res.json({ 
@@ -53,6 +81,16 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString(),
         sheets: sheets ? 'connected' : 'disconnected',
         email: emailService.transporter ? 'ready' : 'not ready'
+    })
+})
+
+// Debug endpoint to see what headers CloudFront forwards
+app.get('/debug/headers', (req, res) => {
+    res.json({
+        headers: req.headers,
+        authorization: req.headers.authorization || 'Not present',
+        customToken: req.headers['x-auth-token'] || 'Not present',
+        forwardedToken: req.headers['x-forwarded-token'] || 'Not present'
     })
 })
 

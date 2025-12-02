@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { useAuthStore } from './store/authStore'
@@ -30,6 +30,25 @@ function OrgRoute({ children }) {
   }
   
   return children
+}
+
+// Debug component to log current location
+function LocationLogger() {
+  const location = useLocation()
+  
+  useEffect(() => {
+    console.log('=== ROUTER DEBUG ===')
+    console.log('Current location:', location.pathname)
+    console.log('Full location:', location)
+    console.log('VITE_BASE_PATH:', import.meta.env.VITE_BASE_PATH)
+    console.log('Is DEV:', import.meta.env.DEV)
+    console.log('Is PROD:', import.meta.env.PROD)
+    console.log('NODE_ENV:', import.meta.env.NODE_ENV)
+    console.log('All env vars:', import.meta.env)
+    console.log('==================')
+  }, [location.pathname])
+  
+  return null
 }
 
 function AppRoutes() {
@@ -81,8 +100,20 @@ function AppRoutes() {
   }
 
   return (
-    <Router>
+    <Router basename={import.meta.env.PROD ? '/ECEG301' : ''}>
+      <LocationLogger />
       <Routes>
+        {/* Root route - must be first for proper matching */}
+        <Route 
+          path="/" 
+          element={
+            <Navigate 
+              to={isAuthenticated && organizationId ? `/org/${organizationId}/dashboard` : '/login'} 
+              replace 
+            />
+          } 
+        />
+
         {/* Public Routes */}
         <Route
           path="/login"
@@ -147,8 +178,16 @@ function AppRoutes() {
           }
         />
 
-        {/* Fallback */}
-        <Route path="/" element={<Navigate to={isAuthenticated && organizationId ? `/org/${organizationId}/dashboard` : '/login'} />} />
+        {/* Catch all unmatched routes */}
+        <Route 
+          path="*" 
+          element={
+            <Navigate 
+              to={isAuthenticated && organizationId ? `/org/${organizationId}/dashboard` : '/login'} 
+              replace 
+            />
+          } 
+        />
       </Routes>
     </Router>
   )
