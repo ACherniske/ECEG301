@@ -24,3 +24,7 @@ config.js
 *.njsproj
 *.sln
 *.sw?
+
+# GitHub Pages deployment
+.cache/
+.gh-pages/

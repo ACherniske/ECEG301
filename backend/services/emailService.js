@@ -51,7 +51,7 @@ class EmailService {
       throw new Error('Email service not initialized')
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+    const frontendUrl = process.env.FRONTEND_URL || 'https://acherniske.github.io/ECEG301'
     const invitationUrl = `${frontendUrl}/accept-invitation?token=${invitation.id}`
 
     const htmlContent = `
@@ -241,7 +241,7 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
       throw new Error('Email service not initialized')
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+    const frontendUrl = process.env.FRONTEND_URL || 'https://acherniske.github.io/ECEG301'
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`
 
     const htmlContent = `
@@ -319,7 +319,7 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
       throw new Error('Email service not initialized')
     }
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173'
+    const frontendUrl = process.env.FRONTEND_URL || 'https://acherniske.github.io/ECEG301'
     const confirmationUrl = `${frontendUrl}/confirm-ride?rideId=${rideDetails.id}&token=${rideDetails.confirmationToken}`
 
     const formatDate = (dateStr) => {

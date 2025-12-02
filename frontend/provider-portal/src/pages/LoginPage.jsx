@@ -142,16 +142,6 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
-
-        {/* Dev Mode Helper */}
-        {import.meta.env.DEV && (
-          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-xs text-yellow-700 font-medium mb-2">Development Mode</p>
-            <p className="text-xs text-yellow-600">
-              Use any email from your ProviderAccounts sheet and any password to login.
-            </p>
-          </div>
-        )}
       </div>
     </div>
   )

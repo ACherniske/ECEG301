@@ -9,7 +9,10 @@
     "dev": "nodemon server.js",
     "migrate-passwords": "node scripts/migratePasswords.js",
     "convert-passwords": "node scripts/convertPasswords.js",
-    "hash-passwords": "node scripts/hashPasswords.js"
+    "hash-passwords": "node scripts/hashPasswords.js",
+    "generate-patients": "node scripts/runPatientGenerator.js",
+    "generate-appointments": "node scripts/runAppointmentGenerator.js",
+    "add-developer": "node scripts/addDeveloperAccount.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
