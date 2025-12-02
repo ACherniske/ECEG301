@@ -1,7 +1,10 @@
 import axios from 'axios'
 
+// Use environment variable with fallback
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+
 const api = axios.create({
-  baseURL: window.APP_CONFIG?.API_URL || 'http://localhost:3000/api',
+  baseURL: `${API_BASE_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -42,9 +45,10 @@ api.interceptors.response.use(
         localStorage.removeItem('user')
         localStorage.removeItem('organization')
         
-        // Redirect to login page
+        // Redirect to login page with proper base path
         if (window.location.pathname !== '/login') {
-          window.location.href = '/login?expired=true'
+          const basePath = import.meta.env.PROD ? '/ECEG301' : ''
+          window.location.href = `${basePath}/login?expired=true`
         }
       }
     }

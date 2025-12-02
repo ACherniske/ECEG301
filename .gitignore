@@ -25,3 +25,9 @@ config.js
 *.sln
 *.sw?
 ServiceAccount.json
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+certificate.crt
+private.key
