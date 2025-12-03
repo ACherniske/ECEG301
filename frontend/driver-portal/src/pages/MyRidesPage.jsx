@@ -38,8 +38,12 @@ export default function MyRidesPage() {
       // Update status to en route
       await rideService.startRide(ride.id)
       
-      // Set as active ride and navigate
-      setActiveRide({ ...ride, status: 'en route' })
+      // Set as active ride with proper initialization and navigate
+      setActiveRide({ 
+        ...ride, 
+        status: 'en route',
+        currentStage: 0 // Initialize to first stage (Go to Pickup)
+      })
       navigate(`/ride/${ride.id}`)
     } catch (error) {
       console.error('Failed to start ride:', error)
@@ -50,10 +54,6 @@ export default function MyRidesPage() {
   const handleViewDetails = (ride) => {
     setActiveRide(ride)
     navigate(`/ride/${ride.id}`)
-  }
-
-  const handleCall = (ride) => {
-    window.location.href = `tel:${ride.patientPhone || ''}`
   }
 
   const handleCancelRide = async (ride, reason) => {
@@ -133,7 +133,6 @@ export default function MyRidesPage() {
                     ride={ride}
                     onStartRide={handleStartRide}
                     onViewDetails={handleViewDetails}
-                    onCall={handleCall}
                     onCancel={handleCancelRide}
                   />
                 ))}
@@ -152,7 +151,6 @@ export default function MyRidesPage() {
                     ride={ride}
                     onStartRide={handleStartRide}
                     onViewDetails={handleViewDetails}
-                    onCall={handleCall}
                     onCancel={handleCancelRide}
                   />
                 ))}
