@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { User, Mail, Lock, Car, MapPin, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { User, Mail, Lock, MapPin, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { Button } from '../components/shared/button'
 import { authService } from '../services/authService'
 
@@ -11,9 +11,7 @@ export default function SignupPage() {
     email: '',
     password: '',
     confirmPassword: '',
-    address: '',
-    driverMake: '',
-    driverModel: ''
+    address: ''
   })
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -206,44 +204,6 @@ export default function SignupPage() {
                   className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg"
                   required
                 />
-              </div>
-            </div>
-
-            {/* Vehicle Information */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Car Make
-                </label>
-                <div className="relative">
-                  <Car size={20} className="absolute left-4 top-3.5 text-gray-400" />
-                  <input
-                    type="text"
-                    name="driverMake"
-                    value={formData.driverMake}
-                    onChange={handleChange}
-                    placeholder="Toyota"
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg"
-                    required
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Car Model
-                </label>
-                <div className="relative">
-                  <Car size={20} className="absolute left-4 top-3.5 text-gray-400" />
-                  <input
-                    type="text"
-                    name="driverModel"
-                    value={formData.driverModel}
-                    onChange={handleChange}
-                    placeholder="Prius"
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg"
-                    required
-                  />
-                </div>
               </div>
             </div>
 
