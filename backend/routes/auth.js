@@ -4,6 +4,8 @@ import { userService } from '../services/userService.js'
 import { generateToken, verifyToken, extractTokenFromHeader } from '../utils/jwtUtils.js'
 import { comparePassword, hashPassword } from '../utils/passwordUtils.js'
 import { authenticateToken } from '../middleware/auth.js'
+import { getSheets } from '../config/googleSheets.js'
+import { SHEET_ID, DRIVER_ACCOUNTS_SHEET, RANGES } from '../constants/sheetConfig.js'
 
 const router = express.Router()
 
@@ -65,6 +67,97 @@ router.post('/login', async (req, res) => {
     })
   } catch (error) {
     console.error('Login error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/auth/driver/login - Driver login with userId and password
+router.post('/driver/login', async (req, res) => {
+  try {
+    const { userId, password } = req.body
+
+    if (!userId || !password) {
+      return res.status(400).json({ error: 'User ID and password are required' })
+    }
+
+    // Get driver from DriverAccounts sheet
+    const sheets = getSheets()
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${DRIVER_ACCOUNTS_SHEET}!${RANGES.DRIVERS}`,
+    })
+
+    const rows = response.data.values || []
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+
+    // Find driver by userId
+    let driverData = null
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i]
+      if (row[0] === userId) {
+        const safeRow = [...row]
+        while (safeRow.length < 10) safeRow.push('')
+        
+        driverData = {
+          userId: safeRow[0],
+          email: safeRow[1],
+          firstName: safeRow[2],
+          lastName: safeRow[3],
+          status: safeRow[4] || 'active',
+          createdAt: safeRow[5],
+          password: safeRow[6], // We'll verify this and not return it
+          address: safeRow[7],
+          driverMake: safeRow[8],
+          driverModel: safeRow[9]
+        }
+        break
+      }
+    }
+
+    if (!driverData) {
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+
+    // Check if driver is active
+    if (driverData.status !== 'active') {
+      return res.status(401).json({ error: 'Driver account is not active' })
+    }
+
+    // Verify password
+    const isPasswordValid = await comparePassword(password, driverData.password)
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+
+    // Create driver object without password
+    const driver = {
+      userId: driverData.userId,
+      email: driverData.email,
+      firstName: driverData.firstName,
+      lastName: driverData.lastName,
+      status: driverData.status,
+      createdAt: driverData.createdAt,
+      address: driverData.address,
+      driverMake: driverData.driverMake,
+      driverModel: driverData.driverModel,
+      role: 'driver'
+    }
+
+    console.log(`Driver ${userId} logged in successfully`)
+
+    // Generate JWT token for driver
+    const token = generateToken(driver, { id: 'driver-org', name: 'Driver Portal' })
+
+    res.json({
+      success: true,
+      message: 'Driver login successful',
+      driver,
+      token
+    })
+  } catch (error) {
+    console.error('Driver login error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })
