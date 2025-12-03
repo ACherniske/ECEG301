@@ -1,9 +1,25 @@
-import { MapPin, Calendar, Clock, Navigation, Phone, CheckCircle, AlertCircle, X } from 'lucide-react'
+import { MapPin, Calendar, Clock, Navigation, CheckCircle, AlertCircle, X, RotateCcw } from 'lucide-react'
 import { Card } from '../shared/Card'
 
-export const MyRideCard = ({ ride, onStartRide, onViewDetails, onCall, onCancel }) => {
+export const MyRideCard = ({ ride, onStartRide, onViewDetails, onCancel }) => {
   const isInProgress = ['en route', 'in transit', 'arrived'].includes(ride.status)
   const isConfirmed = ride.status === 'claimed'
+  
+  // Comprehensive round trip detection
+  const roundTripValue = ride.roundTrip
+  const isRoundTrip = !!(
+    roundTripValue === 'Yes' || 
+    roundTripValue === 'yes' ||
+    roundTripValue === 'YES' ||
+    roundTripValue === 'Y' ||
+    roundTripValue === 'y' ||
+    roundTripValue === 'True' ||
+    roundTripValue === 'true' ||
+    roundTripValue === 'TRUE' ||
+    roundTripValue === true ||
+    roundTripValue === 1 ||
+    roundTripValue === '1'
+  )
 
   const handleCancel = () => {
     const reason = prompt('Please provide a reason for cancellation:')
@@ -19,13 +35,21 @@ export const MyRideCard = ({ ride, onStartRide, onViewDetails, onCall, onCancel 
           <h3 className="font-bold text-lg text-gray-900">{ride.patientName}</h3>
           <p className="text-sm text-gray-500">ID: {ride.patientId}</p>
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-semibold shrink-0 ${
-          isInProgress 
-            ? 'bg-green-100 text-green-700' 
-            : 'bg-blue-100 text-blue-700'
-        }`}>
-          {isInProgress ? 'In Progress' : 'Confirmed'}
-        </span>
+        <div className="flex gap-2 items-center shrink-0">
+          {isRoundTrip && (
+            <span className="px-2 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 flex items-center gap-1">
+              <RotateCcw size={12} />
+              Round Trip
+            </span>
+          )}
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+            isInProgress 
+              ? 'bg-green-100 text-green-700' 
+              : 'bg-blue-100 text-blue-700'
+          }`}>
+            {isInProgress ? 'In Progress' : 'Confirmed'}
+          </span>
+        </div>
       </div>
 
       {/* Route Information */}
@@ -77,17 +101,21 @@ export const MyRideCard = ({ ride, onStartRide, onViewDetails, onCall, onCancel 
         </div>
       )}
 
+      {/* Notes */}
+      {ride.notes && ride.notes.trim() !== '' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+          <div className="flex items-start gap-2">
+            <AlertCircle size={16} className="text-blue-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-blue-700 mb-1">Notes</p>
+              <p className="text-sm text-blue-900">{ride.notes}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className="flex gap-2">
-        {onCall && (
-          <button
-            onClick={() => onCall(ride)}
-            className="px-4 bg-gray-200 text-gray-800 py-3 rounded-xl font-semibold hover:bg-gray-300 transition-colors active:scale-95 flex items-center justify-center"
-          >
-            <Phone size={18} />
-          </button>
-        )}
-
         {/* Cancel button for non-active rides */}
         {!isInProgress && onCancel && (
           <button

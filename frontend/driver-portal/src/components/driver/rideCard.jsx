@@ -5,6 +5,22 @@ export const EnhancedRideCard = ({ ride, onAccept, onView }) => {
   const acceptance = ride.acceptance || {}
   const { score = 0, rank = 0, factors = {}, eligible = true, reason = '' } = acceptance
 
+  // Comprehensive round trip detection
+  const roundTripValue = ride.roundTrip
+  const isRoundTrip = !!(
+    roundTripValue === 'Yes' || 
+    roundTripValue === 'yes' ||
+    roundTripValue === 'YES' ||
+    roundTripValue === 'Y' ||
+    roundTripValue === 'y' ||
+    roundTripValue === 'True' ||
+    roundTripValue === 'true' ||
+    roundTripValue === 'TRUE' ||
+    roundTripValue === true ||
+    roundTripValue === 1 ||
+    roundTripValue === '1'
+  )
+
   // Get score color and badge
   const getScoreColor = (score) => {
     if (score >= 80) return 'bg-green-100 text-green-800 border-green-200'
@@ -142,7 +158,7 @@ export const EnhancedRideCard = ({ ride, onAccept, onView }) => {
         )}
 
         {/* Round Trip Indicator */}
-        {ride.roundTrip === 'true' && (
+        {isRoundTrip && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
             <div className="flex items-center gap-2">
               <span className="text-blue-700">🔄</span>
