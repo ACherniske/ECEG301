@@ -29,8 +29,9 @@ async function initializeServices() {
  * Script to update all existing rides with:
  * 1. Day of the Week (DOTW) based on appointment date
  * 2. Distance to provider (pickup location to provider location)
+ * 3. Pickup time based on appointment time - travel time - 15 minute buffer
  * 
- * This will populate columns R, S in the rides sheet
+ * This will populate columns G (pickupTime), R, S in the rides sheet
  */
 
 async function updateRidesWithDistancesAndDOTW() {
@@ -75,8 +76,10 @@ async function updateRidesWithDistancesAndDOTW() {
             const rideData = {
                 rideId: safeRow[1],
                 appointmentDate: safeRow[4],
+                appointmentTime: safeRow[8],
                 pickupLocation: safeRow[12],
                 providerLocation: safeRow[9],
+                currentPickupTime: safeRow[6],
                 currentDOTW: safeRow[17],
                 currentDistanceToProvider: safeRow[18]
             }
@@ -91,13 +94,26 @@ async function updateRidesWithDistancesAndDOTW() {
                     console.log(`  📅 Calculated DOTW: ${dayOfWeek}`)
                 }
 
-                // Calculate distance to provider
+                // Calculate distance to provider and pickup time
                 let distanceToProvider = rideData.currentDistanceToProvider
-                if (!distanceToProvider && rideData.pickupLocation && rideData.providerLocation) {
+                let calculatedPickupTime = rideData.currentPickupTime
+                
+                if ((!distanceToProvider || !calculatedPickupTime) && rideData.pickupLocation && rideData.providerLocation) {
                     console.log(`  📍 Calculating distance: ${rideData.pickupLocation} → ${rideData.providerLocation}`)
                     const distanceResult = await calculateRealDistance(rideData.pickupLocation, rideData.providerLocation)
-                    distanceToProvider = distanceResult.distance
-                    console.log(`  📏 Distance calculated: ${distanceToProvider}`)
+                    
+                    if (!distanceToProvider) {
+                        distanceToProvider = distanceResult.distance
+                        console.log(`  📏 Distance calculated: ${distanceToProvider}`)
+                    }
+                    
+                    // Calculate pickup time if we have appointment time and travel duration
+                    if (!calculatedPickupTime && rideData.appointmentTime && distanceResult.durationValue) {
+                        calculatedPickupTime = calculatePickupTime(rideData.appointmentTime, distanceResult.durationValue)
+                        if (calculatedPickupTime) {
+                            console.log(`  🕒 Pickup time calculated: ${calculatedPickupTime} (Travel: ${distanceResult.duration}, Buffer: 15min)`)
+                        }
+                    }
                     
                     // Add small delay to avoid hitting API rate limits
                     await new Promise(resolve => setTimeout(resolve, 100))
@@ -105,16 +121,18 @@ async function updateRidesWithDistancesAndDOTW() {
 
                 // Prepare update if we have new data
                 if ((dayOfWeek && dayOfWeek !== rideData.currentDOTW) || 
-                    (distanceToProvider && distanceToProvider !== rideData.currentDistanceToProvider)) {
+                    (distanceToProvider && distanceToProvider !== rideData.currentDistanceToProvider) ||
+                    (calculatedPickupTime && calculatedPickupTime !== rideData.currentPickupTime)) {
                     
                     updates.push({
                         rowIndex,
                         rideId: rideData.rideId,
+                        pickupTime: calculatedPickupTime || rideData.currentPickupTime || '',
                         dayOfWeek: dayOfWeek || '',
                         distanceToProvider: distanceToProvider || ''
                     })
 
-                    console.log(`  ✅ Queued for update: DOTW=${dayOfWeek}, Distance=${distanceToProvider}`)
+                    console.log(`  ✅ Queued for update: PickupTime=${calculatedPickupTime || 'unchanged'}, DOTW=${dayOfWeek}, Distance=${distanceToProvider}`)
                 } else {
                     console.log(`  ⏭️  No update needed (data already present)`)
                 }
@@ -133,6 +151,19 @@ async function updateRidesWithDistancesAndDOTW() {
             
             for (const update of updates) {
                 try {
+                    // Update pickup time (column G)
+                    if (update.pickupTime && update.pickupTime !== '') {
+                        await sheets.spreadsheets.values.update({
+                            spreadsheetId: SHEET_ID,
+                            range: `${RIDES_SHEET}!G${update.rowIndex}`, // pickupTime column
+                            valueInputOption: 'USER_ENTERED',
+                            resource: {
+                                values: [[update.pickupTime]]
+                            }
+                        })
+                    }
+                    
+                    // Update DOTW and distance to provider (columns R and S)
                     await sheets.spreadsheets.values.update({
                         spreadsheetId: SHEET_ID,
                         range: `${RIDES_SHEET}!R${update.rowIndex}:S${update.rowIndex}`, // DOTW and distance to provider
@@ -142,7 +173,7 @@ async function updateRidesWithDistancesAndDOTW() {
                         }
                     })
                     
-                    console.log(`  ✅ Updated ride ${update.rideId}: DOTW=${update.dayOfWeek}, Distance=${update.distanceToProvider}`)
+                    console.log(`  ✅ Updated ride ${update.rideId}: PickupTime=${update.pickupTime || 'N/A'}, DOTW=${update.dayOfWeek}, Distance=${update.distanceToProvider}`)
                 } catch (updateError) {
                     console.error(`  ❌ Failed to update ride ${update.rideId}:`, updateError.message)
                     errorCount++
@@ -216,6 +247,55 @@ function calculateDayOfWeek(appointmentDate) {
 }
 
 /**
+ * Calculate pickup time based on appointment time - travel time - 15 minute buffer
+ * Rounds result to the nearest quarter hour (15-minute intervals)
+ */
+function calculatePickupTime(appointmentTime, travelDurationSeconds, bufferMinutes = 15) {
+    try {
+        if (!appointmentTime || !travelDurationSeconds) return ''
+        
+        // Parse appointment time
+        const [appointmentHours, appointmentMinutes] = appointmentTime.split(':').map(Number)
+        if (isNaN(appointmentHours) || isNaN(appointmentMinutes)) {
+            console.log(`    ⚠️  Could not parse appointment time: ${appointmentTime}`)
+            return ''
+        }
+        
+        const appointmentDate = new Date()
+        appointmentDate.setHours(appointmentHours, appointmentMinutes, 0, 0)
+        
+        // Subtract travel time (in seconds) plus buffer minutes
+        const totalDelaySeconds = travelDurationSeconds + (bufferMinutes * 60)
+        const pickupDate = new Date(appointmentDate.getTime() - (totalDelaySeconds * 1000))
+        
+        // Handle negative time (pickup time before midnight)
+        if (pickupDate.getDate() !== appointmentDate.getDate()) {
+            console.log(`    ⚠️  Pickup time would be on previous day for appointment ${appointmentTime}`)
+            return '' // Skip rides that would require pickup on previous day
+        }
+        
+        // Round to nearest quarter hour (15-minute intervals)
+        const minutes = pickupDate.getMinutes()
+        const roundedMinutes = Math.round(minutes / 15) * 15
+        
+        // Handle overflow to next hour
+        if (roundedMinutes >= 60) {
+            pickupDate.setHours(pickupDate.getHours() + 1)
+            pickupDate.setMinutes(0)
+        } else {
+            pickupDate.setMinutes(roundedMinutes)
+        }
+        
+        // Format as HH:MM
+        return `${pickupDate.getHours().toString().padStart(2, '0')}:${pickupDate.getMinutes().toString().padStart(2, '0')}`
+        
+    } catch (error) {
+        console.log(`    ❌ Error calculating pickup time for ${appointmentTime}:`, error.message)
+        return ''
+    }
+}
+
+/**
  * Dry run mode - shows what would be updated without making changes
  */
 async function dryRunUpdate() {
@@ -252,22 +332,26 @@ async function dryRunUpdate() {
 
             const rideId = safeRow[1]
             const appointmentDate = safeRow[4]
+            const appointmentTime = safeRow[8]
             const pickupLocation = safeRow[12]
             const providerLocation = safeRow[9]
+            const currentPickupTime = safeRow[6]
             const currentDOTW = safeRow[17]
             const currentDistanceToProvider = safeRow[18]
 
             console.log(`📋 Ride ${rideId}:`)
-            console.log(`  📅 Appointment: ${appointmentDate || 'N/A'}`)
+            console.log(`  📅 Appointment: ${appointmentDate || 'N/A'} at ${appointmentTime || 'N/A'}`)
             console.log(`  📍 Pickup: ${pickupLocation || 'N/A'}`)
             console.log(`  🏥 Provider: ${providerLocation || 'N/A'}`)
+            console.log(`  🕒 Current Pickup Time: ${currentPickupTime || 'MISSING'}`)
             console.log(`  📆 Current DOTW: ${currentDOTW || 'MISSING'}`)
             console.log(`  📏 Current Distance: ${currentDistanceToProvider || 'MISSING'}`)
             
+            const wouldUpdatePickupTime = !currentPickupTime && appointmentTime && pickupLocation && providerLocation
             const wouldUpdateDOTW = !currentDOTW && appointmentDate
             const wouldUpdateDistance = !currentDistanceToProvider && pickupLocation && providerLocation
             
-            if (wouldUpdateDOTW || wouldUpdateDistance) {
+            if (wouldUpdatePickupTime || wouldUpdateDOTW || wouldUpdateDistance) {
                 needsUpdate++
                 console.log('  🔄 WOULD UPDATE:')
                 if (wouldUpdateDOTW) {
@@ -276,6 +360,9 @@ async function dryRunUpdate() {
                 }
                 if (wouldUpdateDistance) {
                     console.log(`    📏 Distance: [Would calculate via Google Maps]`)
+                }
+                if (wouldUpdatePickupTime) {
+                    console.log(`    🕒 Pickup Time: [Would calculate based on travel time + 15min buffer]`)
                 }
             } else {
                 console.log('  ✅ No update needed')
@@ -301,7 +388,7 @@ if (isDryRun) {
 } else if (isExecute) {
     updateRidesWithDistancesAndDOTW()
 } else {
-    console.log('🚀 Ride Distance & DOTW Update Script')
+    console.log('🚀 Ride Distance, DOTW & Pickup Time Update Script')
     console.log('')
     console.log('Usage:')
     console.log('  node updateRideDistances.js --dry-run    # Preview changes')
@@ -310,6 +397,7 @@ if (isDryRun) {
     console.log('This script will:')
     console.log('  📅 Calculate day of the week from appointment dates')
     console.log('  📏 Calculate distances from pickup to provider locations')
+    console.log('  🕒 Calculate pickup times (appointment time - travel time - 15min buffer)')
     console.log('  💾 Update the rides sheet with calculated values')
     console.log('')
     console.log('💡 Start with --dry-run to see what will be updated')
