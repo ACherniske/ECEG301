@@ -21,23 +21,28 @@ function Deploy-Portal {
     )
     
     Write-Host "Deploying $PortalName..." -ForegroundColor Magenta
+    
+    # Always start from script directory
+    Set-Location $ScriptDir
     Set-Location $PortalPath
     
-    # Check if gh-pages is installed
-    $ghPagesInstalled = npm list gh-pages 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "Installing gh-pages for $PortalName..." -ForegroundColor Yellow
-        npm install --save-dev gh-pages
+    # Ensure dependencies are installed
+    if (-not (Test-Path "node_modules")) {
+        Write-Host "Installing dependencies for $PortalName..." -ForegroundColor Yellow
+        npm install
     }
     
+    # Clean dist folder using PowerShell (more reliable on Windows)
     Write-Host "Cleaning previous build for $PortalName..." -ForegroundColor Yellow
-    npm run clean 2>$null
+    if (Test-Path "dist") {
+        Remove-Item -Recurse -Force "dist"
+    }
     
     Write-Host "Building $PortalName for production..." -ForegroundColor Yellow
     $env:NODE_ENV = "production"
     $env:VITE_BASE_PATH = $BasePath
     $env:VITE_APP_ENV = "production"
-    npm run build
+    npx vite build
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "$PortalName build successful!" -ForegroundColor Green
