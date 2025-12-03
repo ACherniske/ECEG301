@@ -7,9 +7,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico'],
+      devOptions: {
+        enabled: true
+      },
       manifest: {
-        name: 'Driver Portal',
+        name: 'MediRide Driver',
         short_name: 'MediRide',
         description: 'Healthcare transportation driver app',
         theme_color: '#2563eb',
@@ -20,14 +22,10 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: '/icon-192.png',
+            src: '/vite.svg',
             sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png'
+            type: 'image/svg+xml',
+            purpose: 'any maskable'
           }
         ]
       }
