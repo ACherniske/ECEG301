@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Lock, User, ArrowRight } from 'lucide-react'
 import { useDriverStore } from '../store/driverStore'
+import { authService } from '../services/authService'
 import { Button } from '../components/shared/Button'
 
 export default function LoginPage() {
@@ -19,26 +20,11 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // TODO: Replace with actual API call
-      if (driverId && password) {
-        const mockDriver = {
-          id: driverId,
-          firstName: 'John',
-          lastName: 'Doe',
-          email: 'john@hospital.com',
-          phone: '555-1234',
-          carMake: 'Toyota',
-          carModel: 'Prius',
-          licensePlate: 'ABC-1234',
-        }
-        
-        localStorage.setItem('driverToken', 'mock-token')
-        localStorage.setItem('driver', JSON.stringify(mockDriver))
-        login(mockDriver, 'org-downtown-medical')
-        navigate('/available')
-      } else {
-        setError('Please enter your credentials')
-      }
+      const { driver } = await authService.login(driverId, password)
+      
+      // Update the store with driver data
+      login(driver, 'driver-org')
+      navigate('/available')
     } catch (err) {
       setError(err.message || 'Login failed')
     } finally {
