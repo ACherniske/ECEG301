@@ -59,5 +59,15 @@ export const driverService = {
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Failed to update profile')
     }
+  },
+
+  // Get driver statistics
+  async getStatistics() {
+    try {
+      const response = await api.get('/driver/statistics')
+      return response.data
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to fetch statistics')
+    }
   }
 }
