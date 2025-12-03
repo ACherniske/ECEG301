@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js'
 import ridesRoutes from './routes/rides.js'
 import publicRidesRoutes from './routes/publicRides.js'
 import driverRoutes from './routes/drivers.js'
+import driverPortalRoutes from './routes/driverPortal.js'
 import patientRoutes from './routes/patients.js'
 import appointmentRoutes from './routes/appointments.js'
 import invitationRoutes from './routes/invitations.js'
@@ -100,6 +101,9 @@ app.get('/debug/headers', (req, res) => {
 app.use('/api', publicInvitationRoutes)
 app.use('/api', publicRidesRoutes)
 app.use('/api/auth', authRoutes)
+
+// Driver Portal Routes (JWT authentication required, driver role)
+app.use('/api/driver', driverPortalRoutes)
 
 // Protected API Routes (require authentication)
 app.use('/api/org', authenticateToken, userRoutes)
