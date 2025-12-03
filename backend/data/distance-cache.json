@@ -54,5 +54,75 @@
       "origin": "one dent dr, lewisburg, pa 17837",
       "destination": "123 broadway, milton, pa 17847"
     }
+  ],
+  [
+    "561edddd299716fbf8fab9a2e378294f",
+    {
+      "result": {
+        "distance": "14.3 mi",
+        "duration": "23 mins",
+        "distanceValue": 23083,
+        "durationValue": 1352
+      },
+      "timestamp": 1764745916782,
+      "origin": "789 chestnut st, sunbury, pa 17801",
+      "destination": "danville family practice, 200 mill st, danville, pa 17821"
+    }
+  ],
+  [
+    "75ee12520ff0ffafc070552724edef58",
+    {
+      "result": {
+        "distance": "11.9 mi",
+        "duration": "17 mins",
+        "distanceValue": 19198,
+        "durationValue": 1024
+      },
+      "timestamp": 1764745917092,
+      "origin": "567 bloom st, danville, pa 17821",
+      "destination": "upmc susquehanna northumberland, 1001 fourth st, northumberland, pa 17857"
+    }
+  ],
+  [
+    "2ee61286116bd24e0ce3ab720d5f9acc",
+    {
+      "result": {
+        "distance": "0.5 mi",
+        "duration": "3 mins",
+        "distanceValue": 819,
+        "durationValue": 177
+      },
+      "timestamp": 1764745917459,
+      "origin": "567 bloom st, danville, pa 17821",
+      "destination": "geisinger medical center, 100 n academy ave, danville, pa 17821"
+    }
+  ],
+  [
+    "c5712958fbc4dc53fa581c777f8eaa5a",
+    {
+      "result": {
+        "distance": "16.8 mi",
+        "duration": "23 mins",
+        "distanceValue": 26985,
+        "durationValue": 1370
+      },
+      "timestamp": 1764745917800,
+      "origin": "345 orange st, selinsgrove, pa 17870",
+      "destination": "milton family practice, 547 mahoning st, milton, pa 17847"
+    }
+  ],
+  [
+    "47ed524e1c205baa5375e0f8889b3e70",
+    {
+      "result": {
+        "distance": "13.8 mi",
+        "duration": "25 mins",
+        "distanceValue": 22238,
+        "durationValue": 1496
+      },
+      "timestamp": 1764745918108,
+      "origin": "123 broadway, milton, pa 17847",
+      "destination": "evangelical community hospital - mifflinburg, 100 hospital dr, mifflinburg, pa 17844"
+    }
   ]
 ]

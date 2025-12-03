@@ -42,6 +42,52 @@ const calculateDayOfWeek = (appointmentDate) => {
   }
 }
 
+// Helper function to calculate pickup time based on appointment time - travel time - buffer
+const calculatePickupTime = (appointmentTime, travelDurationSeconds, bufferMinutes = 15) => {
+  try {
+    if (!appointmentTime || !travelDurationSeconds) return ''
+    
+    // Parse appointment time
+    const [appointmentHours, appointmentMinutes] = appointmentTime.split(':').map(Number)
+    if (isNaN(appointmentHours) || isNaN(appointmentMinutes)) {
+      console.log(`Could not parse appointment time: ${appointmentTime}`)
+      return ''
+    }
+    
+    const appointmentDate = new Date()
+    appointmentDate.setHours(appointmentHours, appointmentMinutes, 0, 0)
+    
+    // Subtract travel time (in seconds) plus buffer minutes
+    const totalDelaySeconds = travelDurationSeconds + (bufferMinutes * 60)
+    const pickupDate = new Date(appointmentDate.getTime() - (totalDelaySeconds * 1000))
+    
+    // Handle negative time (pickup time before midnight)
+    if (pickupDate.getDate() !== appointmentDate.getDate()) {
+      console.log(`Pickup time would be on previous day for appointment ${appointmentTime}`)
+      return '' // Skip rides that would require pickup on previous day
+    }
+    
+    // Round to nearest quarter hour (15-minute intervals)
+    const minutes = pickupDate.getMinutes()
+    const roundedMinutes = Math.round(minutes / 15) * 15
+    
+    // Handle overflow to next hour
+    if (roundedMinutes >= 60) {
+      pickupDate.setHours(pickupDate.getHours() + 1)
+      pickupDate.setMinutes(0)
+    } else {
+      pickupDate.setMinutes(roundedMinutes)
+    }
+    
+    // Format as HH:MM
+    return `${pickupDate.getHours().toString().padStart(2, '0')}:${pickupDate.getMinutes().toString().padStart(2, '0')}`
+    
+  } catch (error) {
+    console.log(`Error calculating pickup time for ${appointmentTime}:`, error.message)
+    return ''
+  }
+}
+
 // Helper function to calculate distance from provider to pickup location
 const calculateProviderToPickupDistance = async (providerLocation, pickupLocation) => {
   try {
@@ -290,21 +336,34 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
     const dayOfWeek = calculateDayOfWeek(rideData.appointmentDate)
     console.log(`Calculated day of week for ${rideData.appointmentDate}: ${dayOfWeek}`)
 
-    // Calculate distance from provider to pickup location
+    // Calculate distance from pickup to provider location and pickup time
     let distanceToProvider = ''
+    let calculatedPickupTime = ''
     const providerLocation = rideData.providerLocation || rideData.appointmentLocation || ''
     const pickupLocation = rideData.pickupLocation || ''
     
     if (providerLocation && pickupLocation) {
       try {
-        distanceToProvider = await calculateProviderToPickupDistance(providerLocation, pickupLocation)
+        // Calculate distance from pickup to provider (reverse direction for travel time)
+        console.log(`Calculating pickup-to-provider distance and travel time: ${pickupLocation} → ${providerLocation}`)
+        const distanceResult = await calculateRealDistance(pickupLocation, providerLocation)
+        distanceToProvider = distanceResult.distance
+        console.log(`Calculated provider distance: ${distanceToProvider}`)
+        
+        // Calculate pickup time if we have appointment time and travel duration
+        if (rideData.appointmentTime && distanceResult.durationValue) {
+          calculatedPickupTime = calculatePickupTime(rideData.appointmentTime, distanceResult.durationValue)
+          if (calculatedPickupTime) {
+            console.log(`✅ Calculated pickup time: ${calculatedPickupTime} (Travel: ${distanceResult.duration}, Buffer: 15min, Rounded to quarter hour)`)
+          }
+        }
       } catch (distanceError) {
-        console.error('Failed to calculate distance during ride creation:', distanceError.message)
-        // Continue with ride creation even if distance calculation fails
+        console.error('Failed to calculate distance and pickup time during ride creation:', distanceError.message)
+        // Continue with ride creation even if calculation fails
       }
     }
 
-    // Prepare ride data with defaults (now includes calculated DOTW and distance)
+    // Prepare ride data with defaults (now includes calculated DOTW, distance, and pickup time)
     const rideValues = [
       orgId, // A
       newId, // B
@@ -312,7 +371,7 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       rideData.patientId || '', // D
       rideData.appointmentDate || '', // E
       rideData.appointmentId || '', // F
-      '', // G - pickupTime - empty until assigned
+      calculatedPickupTime || '', // G - pickupTime - calculated during creation
       rideData.roundTrip === true || rideData.roundTrip === 'true' ? 'true' : 'false', // H
       rideData.appointmentTime || '', // I
       providerLocation, // J - providerLocation
@@ -353,7 +412,7 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       providerName: rideData.providerName,
       pickupLocation: pickupLocation,
       notes: rideData.notes,
-      pickupTime: '',
+      pickupTime: calculatedPickupTime, // Include calculated pickup time
       roundTrip: rideData.roundTrip === true || rideData.roundTrip === 'true',
       driverId: rideData.driverId,
       driverName: rideData.driverName,

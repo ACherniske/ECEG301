@@ -625,10 +625,14 @@ router.patch('/rides/:rideId/accept', authenticateToken, requireDriverRole, asyn
                 while (safeRow.length < 21) safeRow.push('')
                 
                 rideData = {
+                    appointmentTime: safeRow[8], // Column 8: appointment time
+                    providerLocation: safeRow[9], // Column 9: provider location
                     status: safeRow[10], // Column 10: status
-                    driverId: safeRow[13], // Column 13: driverId
-                    pickupLocation: safeRow[12], // Column 12: pickup location
                     notes: safeRow[11], // Column 11: notes
+                    pickupLocation: safeRow[12], // Column 12: pickup location
+                    driverId: safeRow[13], // Column 13: driverId
+                    pickupTime: safeRow[6], // Column 6: pickupTime (calculated during creation)
+                    roundTrip: safeRow[7], // Column 7: round trip
                     dayOfWeek: safeRow[17], // Column 17: dayOfWeek (preserve existing)
                     distanceToProvider: safeRow[18] // Column 18: distanceToProvider (preserve existing)
                 }
@@ -689,7 +693,7 @@ router.patch('/rides/:rideId/accept', authenticateToken, requireDriverRole, asyn
         // Update the ride with driver information and change status to claimed
         await sheets.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!K${rideRowIndex}:T${rideRowIndex}`, // Status through distanceToDriver
+            range: `${RIDES_SHEET}!K${rideRowIndex}:T${rideRowIndex}`, // status through distanceToDriver
             valueInputOption: 'RAW',
             requestBody: {
                 values: [[
@@ -713,6 +717,7 @@ router.patch('/rides/:rideId/accept', authenticateToken, requireDriverRole, asyn
             message: 'Ride accepted successfully',
             rideId,
             driverName,
+            pickupTime: rideData.pickupTime, // Use existing pickup time from ride creation
             distanceToDriver
         })
     } catch (error) {

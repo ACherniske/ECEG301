@@ -210,7 +210,13 @@ router.post('/:orgId/drivers/:driverId/claim-ride', authenticateToken, async (re
             return res.status(400).json({ error: `Cannot claim ride with status: ${currentStatus}` })
         }
 
-        // Update the ride with driver information
+        // Get existing pickup time from ride (calculated during creation)
+        const existingPickupTime = rideRow[6] // Column G - pickup time
+        const pickupLocation = rideRow[12] // Column M
+        const providerLocation = rideRow[9] // Column J
+        const appointmentTime = rideRow[8] // Column I
+
+        // Update the ride with driver information (pickup time already calculated during creation)
         const updates = [
             {
                 range: `${RIDES_SHEET}!K${rowIndex}`, // Status
@@ -245,6 +251,7 @@ router.post('/:orgId/drivers/:driverId/claim-ride', authenticateToken, async (re
             rideId, 
             driverId,
             driverName: driver.name,
+            pickupTime: existingPickupTime, // Use existing pickup time from creation
             message: 'Ride claimed successfully' 
         })
     } catch (error) {
