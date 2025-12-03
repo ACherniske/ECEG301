@@ -1,7 +1,7 @@
 import api from './api'
 
 export const rideService = {
-  getAvailableRides: async (organizationId) => {
+  getAvailableRides: async () => {
     try {
       const response = await api.get(`/driver/rides`)
       // Return the full response which may include rides array and summary
@@ -11,15 +11,11 @@ export const rideService = {
     }
   },
 
-  getMyRides: async (organizationId, driverId) => {
+  getMyRides: async () => {
     try {
-      const response = await api.get(`/driver/rides`)
-      // Filter for accepted rides for this driver
-      const rides = Array.isArray(response.data) ? response.data : (response.data.rides || [])
-      return rides.filter(ride => 
-        ride.driverId === driverId && 
-        ['confirmed', 'in-progress'].includes(ride.status)
-      )
+      const response = await api.get(`/driver/rides/my`)
+      // Return rides assigned to current driver
+      return Array.isArray(response.data) ? response.data : []
     } catch (error) {
       throw error.response?.data?.error || 'Failed to fetch my rides'
     }
@@ -34,33 +30,57 @@ export const rideService = {
     }
   },
 
-  startRide: async (organizationId, rideId, rowIndex) => {
+  updateRideStatus: async (rideId, status, cancellationReason = null) => {
     try {
-      const response = await api.patch(
-        `/org/${organizationId}/rides/${rideId}/status`,
-        {
-          status: 'in-progress',
-          rowIndex,
-        }
-      )
+      const payload = { status }
+      if (cancellationReason) {
+        payload.cancellationReason = cancellationReason
+      }
+      
+      const response = await api.put(`/driver/rides/${rideId}/status`, payload)
+      return response.data
+    } catch (error) {
+      throw error.response?.data?.error || 'Failed to update ride status'
+    }
+  },
+
+  startRide: async (rideId) => {
+    try {
+      const response = await api.put(`/driver/rides/${rideId}/status`, { status: 'en route' })
       return response.data
     } catch (error) {
       throw error.response?.data?.error || 'Failed to start ride'
     }
   },
 
-  completeRide: async (organizationId, rideId, rowIndex) => {
+  cancelRide: async (rideId, reason) => {
     try {
-      const response = await api.patch(
-        `/org/${organizationId}/rides/${rideId}/status`,
-        {
-          status: 'completed',
-          rowIndex,
-        }
-      )
+      const payload = { status: 'cancelled' }
+      if (reason) payload.cancellationReason = reason
+      const response = await api.put(`/driver/rides/${rideId}/status`, payload)
+      return response.data
+    } catch (error) {
+      throw error.response?.data?.error || 'Failed to cancel ride'
+    }
+  },
+
+  completeRide: async (rideId) => {
+    try {
+      const response = await api.put(`/driver/rides/${rideId}/status`, { status: 'completed' })
       return response.data
     } catch (error) {
       throw error.response?.data?.error || 'Failed to complete ride'
+    }
+  },
+
+  getRideHistory: async () => {
+    try {
+      // Get all driver's rides and filter for completed
+      const response = await api.get(`/driver/rides/my`)
+      const allRides = Array.isArray(response.data) ? response.data : []
+      return allRides.filter(ride => ride.status === 'completed')
+    } catch (error) {
+      throw error.response?.data?.error || 'Failed to fetch ride history'
     }
   },
 }
