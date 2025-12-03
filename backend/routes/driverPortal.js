@@ -89,27 +89,23 @@ router.get('/rides', authenticateToken, requireDriverRole, async (req, res) => {
                 
                 return {
                     rowIndex: index + 2,
-                    rideId: safeRow[0],
-                    patientId: safeRow[1],
-                    appointmentId: safeRow[2],
-                    pickup: {
-                        address: safeRow[3],
-                        datetime: safeRow[4],
-                        notes: safeRow[5]
-                    },
-                    destination: {
-                        address: safeRow[6],
-                        datetime: safeRow[7],
-                        notes: safeRow[8]
-                    },
-                    status: safeRow[9],
-                    driverId: safeRow[10],
-                    createdAt: safeRow[11],
-                    updatedAt: safeRow[12],
-                    distance: safeRow[13],
-                    estimatedDuration: safeRow[14],
-                    patientNotes: safeRow[15],
-                    internalNotes: safeRow[16]
+                    rideId: safeRow[1], // id
+                    orgId: safeRow[0], // orgId
+                    patientName: safeRow[2], // patientName
+                    patientId: safeRow[3], // patientId
+                    appointmentDate: safeRow[4], // appointmentDate
+                    appointmentId: safeRow[5], // appointmentId
+                    pickupTime: safeRow[6], // pickupTime
+                    roundTrip: safeRow[7], // roundTrip
+                    appointmentTime: safeRow[8], // appointmentTime
+                    providerLocation: safeRow[9], // providerLocation (destination)
+                    status: safeRow[10], // status
+                    notes: safeRow[11], // notes
+                    pickupLocation: safeRow[12], // pickupLocation (pickup address)
+                    driverId: safeRow[13], // driverId
+                    driverName: safeRow[14], // driverName
+                    driverPlate: safeRow[15], // driverPlate
+                    driverCar: safeRow[16] // driverCar
                 }
             })
             .filter(ride => ride.status === 'confirmed') // Only confirmed rides available for claiming
@@ -144,27 +140,23 @@ router.get('/rides/my', authenticateToken, requireDriverRole, async (req, res) =
                 
                 return {
                     rowIndex: index + 2,
-                    rideId: safeRow[0],
-                    patientId: safeRow[1],
-                    appointmentId: safeRow[2],
-                    pickup: {
-                        address: safeRow[3],
-                        datetime: safeRow[4],
-                        notes: safeRow[5]
-                    },
-                    destination: {
-                        address: safeRow[6],
-                        datetime: safeRow[7],
-                        notes: safeRow[8]
-                    },
-                    status: safeRow[9],
-                    driverId: safeRow[10],
-                    createdAt: safeRow[11],
-                    updatedAt: safeRow[12],
-                    distance: safeRow[13],
-                    estimatedDuration: safeRow[14],
-                    patientNotes: safeRow[15],
-                    internalNotes: safeRow[16]
+                    rideId: safeRow[1], // id
+                    orgId: safeRow[0], // orgId
+                    patientName: safeRow[2], // patientName
+                    patientId: safeRow[3], // patientId
+                    appointmentDate: safeRow[4], // appointmentDate
+                    appointmentId: safeRow[5], // appointmentId
+                    pickupTime: safeRow[6], // pickupTime
+                    roundTrip: safeRow[7], // roundTrip
+                    appointmentTime: safeRow[8], // appointmentTime
+                    providerLocation: safeRow[9], // providerLocation (destination)
+                    status: safeRow[10], // status
+                    notes: safeRow[11], // notes
+                    pickupLocation: safeRow[12], // pickupLocation (pickup address)
+                    driverId: safeRow[13], // driverId
+                    driverName: safeRow[14], // driverName
+                    driverPlate: safeRow[15], // driverPlate
+                    driverCar: safeRow[16] // driverCar
                 }
             })
             .filter(ride => ride.driverId === driverId)
@@ -202,14 +194,14 @@ router.post('/rides/:rideId/claim', authenticateToken, requireDriverRole, async 
         
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i]
-            if (row[0] === rideId) {
+            if (row[1] === rideId) { // Column 1: id (not column 0)
                 rideRowIndex = i + 1 // 1-based for sheets API
                 const safeRow = [...row]
                 while (safeRow.length < 17) safeRow.push('')
                 
                 rideData = {
-                    status: safeRow[9],
-                    driverId: safeRow[10]
+                    status: safeRow[10], // Column 10: status
+                    driverId: safeRow[13] // Column 13: driverId
                 }
                 break
             }
@@ -231,10 +223,10 @@ router.post('/rides/:rideId/claim', authenticateToken, requireDriverRole, async 
         const now = new Date().toISOString()
         await sheets.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!J${rideRowIndex}:M${rideRowIndex}`, // status, driverId, createdAt, updatedAt
+            range: `${RIDES_SHEET}!K${rideRowIndex}:N${rideRowIndex}`, // status, notes, pickupLocation, driverId
             valueInputOption: 'USER_ENTERED',
             resource: {
-                values: [['claimed', driverId, '', now]]
+                values: [['claimed', '', '', driverId]]
             }
         })
 
@@ -247,6 +239,80 @@ router.post('/rides/:rideId/claim', authenticateToken, requireDriverRole, async 
         })
     } catch (error) {
         console.error('Error claiming ride:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// GET /api/driver/statistics - Get driver statistics from rides
+router.get('/statistics', authenticateToken, requireDriverRole, async (req, res) => {
+    try {
+        const driverId = req.user.id
+        
+        const sheets = getSheets()
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${RIDES_SHEET}!${RANGES.RIDES}`,
+        })
+
+        const rows = response.data.values || []
+        if (rows.length === 0) {
+            return res.json({
+                totalRides: 0,
+                completedRides: 0,
+                completionRate: 0
+            })
+        }
+
+        // Filter rides assigned to this driver and count statistics
+        let totalRides = 0
+        let completedRides = 0
+
+        console.log(`Checking rides for driver ${driverId}...`)
+        console.log(`Total rows found: ${rows.length}`)
+
+        // Debug: Show all unique driver IDs in the sheet
+        const foundDriverIds = new Set()
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i]
+            const safeRow = [...row]
+            while (safeRow.length < 17) safeRow.push('')
+            if (safeRow[13]) { // driverId column
+                foundDriverIds.add(safeRow[13])
+            }
+        }
+        console.log(`Found drivers in sheet:`, Array.from(foundDriverIds))
+
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i]
+            const safeRow = [...row]
+            while (safeRow.length < 17) safeRow.push('')
+            
+            // Check if this ride is assigned to the current driver
+            // Based on actual sheet structure: driverId is in column 13, status is in column 10
+            if (safeRow[13] === driverId) { // Column 13: driverId
+                totalRides++
+                console.log(`✓ Found ride for driver: ${safeRow[1]} (status: ${safeRow[10]})`)
+                
+                // Check if ride is completed (status: 'completed')
+                if (safeRow[10] === 'completed') { // Column 10: status
+                    completedRides++
+                    console.log(`✓ Completed ride: ${safeRow[1]}`)
+                }
+            }
+        }
+
+        const completionRate = totalRides > 0 ? Math.round((completedRides / totalRides) * 100) : 0
+
+        const statistics = {
+            totalRides,
+            completedRides,
+            completionRate
+        }
+
+        console.log(`Driver ${driverId} statistics: ${JSON.stringify(statistics)}`)
+        res.json(statistics)
+    } catch (error) {
+        console.error('Error fetching driver statistics:', error)
         res.status(500).json({ error: error.message })
     }
 })
@@ -365,7 +431,7 @@ router.put('/rides/:rideId/status', authenticateToken, requireDriverRole, async 
         
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i]
-            if (row[0] === rideId && row[10] === driverId) {
+            if (row[1] === rideId && row[13] === driverId) { // Column 1: id, Column 13: driverId
                 rideRowIndex = i + 1 // 1-based for sheets API
                 break
             }
@@ -375,14 +441,13 @@ router.put('/rides/:rideId/status', authenticateToken, requireDriverRole, async 
             return res.status(404).json({ error: 'Ride not found or not assigned to this driver' })
         }
 
-        // Update the ride status
-        const now = new Date().toISOString()
+        // Update the ride status (Column K = 11th column in spreadsheet)
         await sheets.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!J${rideRowIndex}:M${rideRowIndex}`, // status, driverId, createdAt, updatedAt
+            range: `${RIDES_SHEET}!K${rideRowIndex}`, // status column only
             valueInputOption: 'USER_ENTERED',
             resource: {
-                values: [[status, driverId, '', now]]
+                values: [[status]]
             }
         })
 
