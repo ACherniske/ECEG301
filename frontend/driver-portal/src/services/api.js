@@ -19,9 +19,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // Clear authentication data
       localStorage.removeItem('driverToken')
       localStorage.removeItem('driver')
-      window.location.href = '/login'
+      
+      // Only redirect if we're not already on the login page
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

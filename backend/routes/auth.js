@@ -71,13 +71,13 @@ router.post('/login', async (req, res) => {
   }
 })
 
-// POST /api/auth/driver/login - Driver login with userId and password
+// POST /api/auth/driver/login - Driver login with email and password
 router.post('/driver/login', async (req, res) => {
   try {
-    const { userId, password } = req.body
+    const { email, password } = req.body
 
-    if (!userId || !password) {
-      return res.status(400).json({ error: 'User ID and password are required' })
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' })
     }
 
     // Get driver from DriverAccounts sheet
@@ -92,11 +92,11 @@ router.post('/driver/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' })
     }
 
-    // Find driver by userId
+    // Find driver by email (column B)
     let driverData = null
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i]
-      if (row[0] === userId) {
+      if (row[1] && row[1].toLowerCase() === email.toLowerCase()) {
         const safeRow = [...row]
         while (safeRow.length < 10) safeRow.push('')
         
@@ -131,7 +131,16 @@ router.post('/driver/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' })
     }
 
-    // Create driver object without password
+    // Create driver object without password for JWT
+    const driverForToken = {
+      id: driverData.userId, // Use userId as id for JWT compatibility
+      email: driverData.email,
+      firstName: driverData.firstName,
+      lastName: driverData.lastName,
+      role: 'driver'
+    }
+
+    // Create driver object for response (includes more details)
     const driver = {
       userId: driverData.userId,
       email: driverData.email,
@@ -145,10 +154,11 @@ router.post('/driver/login', async (req, res) => {
       role: 'driver'
     }
 
-    console.log(`Driver ${userId} logged in successfully`)
+    console.log(`Driver ${email} logged in successfully`)
 
-    // Generate JWT token for driver
-    const token = generateToken(driver, { id: 'driver-org', name: 'Driver Portal' })
+    // Generate JWT token for driver (using driver organization structure)
+    const driverOrganization = { id: 'driver-portal', name: 'Driver Portal' }
+    const token = generateToken(driverForToken, driverOrganization)
 
     res.json({
       success: true,
@@ -158,6 +168,87 @@ router.post('/driver/login', async (req, res) => {
     })
   } catch (error) {
     console.error('Driver login error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+})
+
+// POST /api/auth/driver/register - Driver registration
+router.post('/driver/register', async (req, res) => {
+  try {
+    const { firstName, lastName, email, password, address, driverMake, driverModel } = req.body
+
+    if (!firstName || !lastName || !email || !password || !address || !driverMake || !driverModel) {
+      return res.status(400).json({ error: 'All fields are required' })
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters long' })
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' })
+    }
+
+    const sheets = getSheets()
+    
+    // Check if email already exists
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: `${DRIVER_ACCOUNTS_SHEET}!${RANGES.DRIVERS}`,
+    })
+
+    const rows = response.data.values || []
+    
+    // Check for existing email (column B)
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i]
+      if (row[1] && row[1].toLowerCase() === email.toLowerCase()) {
+        return res.status(400).json({ error: 'Email address already registered' })
+      }
+    }
+
+    // Generate a unique user ID
+    const userId = `D${Date.now()}${Math.random().toString(36).substr(2, 4).toUpperCase()}`
+    
+    // Hash the password
+    const hashedPassword = await hashPassword(password)
+    
+    // Prepare data for insertion
+    const now = new Date().toISOString()
+    const newRow = [
+      userId,           // A: userId
+      email,            // B: email
+      firstName,        // C: firstName
+      lastName,         // D: lastName
+      'active',         // E: status (immediately active)
+      now,              // F: createdAt
+      hashedPassword,   // G: password
+      address,          // H: address
+      driverMake,       // I: driverMake
+      driverModel       // J: driverModel
+    ]
+
+    // Add the new driver to the sheet
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: `${DRIVER_ACCOUNTS_SHEET}!A:J`,
+      valueInputOption: 'USER_ENTERED',
+      resource: {
+        values: [newRow]
+      }
+    })
+
+    console.log(`New driver registered: ${userId} (${email})`)
+
+    res.json({
+      success: true,
+      message: 'Registration successful! You can now log in with your credentials.',
+      userId
+    })
+  } catch (error) {
+    console.error('Driver registration error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 })

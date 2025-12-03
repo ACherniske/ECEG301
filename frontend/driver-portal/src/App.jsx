@@ -1,29 +1,21 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useDriverStore } from './store/driverStore'
+import ProtectedRoute from './components/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
+import SignupPage from './pages/SignupPage'
 import AvailableRidesPage from './pages/AvailableRidesPage'
 import MyRidesPage from './pages/MyRidesPage'
 import RideHistoryPage from './pages/RideHistoryPage'
 import ProfilePage from './pages/ProfilePage'
 
-function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useDriverStore()
-  return isAuthenticated ? children : <Navigate to="/login" />
-}
-
 function App() {
-  const { login, isAuthenticated } = useDriverStore()
+  const { isAuthenticated, initializeAuth } = useDriverStore()
 
   useEffect(() => {
-    const token = localStorage.getItem('driverToken')
-    const driverData = localStorage.getItem('driver')
-    
-    if (token && driverData) {
-      const driver = JSON.parse(driverData)
-      login(driver, 'org-downtown-medical')
-    }
-  }, [])
+    // Initialize authentication from localStorage on app start
+    initializeAuth()
+  }, [initializeAuth])
 
   return (
     <Router>
@@ -31,6 +23,10 @@ function App() {
         <Route
           path="/login"
           element={isAuthenticated ? <Navigate to="/available" /> : <LoginPage />}
+        />
+        <Route
+          path="/signup"
+          element={isAuthenticated ? <Navigate to="/available" /> : <SignupPage />}
         />
         <Route
           path="/available"
