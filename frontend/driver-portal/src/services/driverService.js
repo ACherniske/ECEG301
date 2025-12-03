@@ -49,5 +49,15 @@ export const driverService = {
     } catch (error) {
       throw new Error(error.response?.data?.error || 'Failed to update ride status')
     }
+  },
+
+  // Update driver profile
+  async updateProfile(profileData) {
+    try {
+      const response = await api.put('/driver/profile', profileData)
+      return response.data.driver
+    } catch (error) {
+      throw new Error(error.response?.data?.error || 'Failed to update profile')
+    }
   }
 }
