@@ -5,8 +5,60 @@ import { authenticateToken } from '../middleware/auth.js'
 import emailService from '../services/emailService.js'
 import { generateConfirmationToken } from '../utils/tokenUtils.js'
 import { storeConfirmationToken } from '../utils/confirmationTokens.js'
+import { calculateRealDistance } from '../services/mapsService.js'
 
 const router = express.Router()
+
+// Helper function to calculate day of the week from appointment date
+const calculateDayOfWeek = (appointmentDate) => {
+  try {
+    if (!appointmentDate) return ''
+    
+    let date
+    
+    // Try to parse different date formats
+    if (appointmentDate.includes('/')) {
+      // MM/DD/YYYY or MM/DD/YY format
+      date = new Date(appointmentDate)
+    } else if (appointmentDate.includes('-')) {
+      // YYYY-MM-DD format
+      date = new Date(appointmentDate)
+    } else {
+      // Try as is
+      date = new Date(appointmentDate)
+    }
+    
+    if (isNaN(date.getTime())) {
+      console.log(`Could not parse appointment date: ${appointmentDate}`)
+      return ''
+    }
+    
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    return days[date.getDay()]
+    
+  } catch (error) {
+    console.log(`Error parsing appointment date ${appointmentDate}:`, error.message)
+    return ''
+  }
+}
+
+// Helper function to calculate distance from provider to pickup location
+const calculateProviderToPickupDistance = async (providerLocation, pickupLocation) => {
+  try {
+    if (!providerLocation || !pickupLocation) {
+      return ''
+    }
+    
+    console.log(`Calculating distance: ${providerLocation} → ${pickupLocation}`)
+    const distanceResult = await calculateRealDistance(providerLocation, pickupLocation)
+    console.log(`Calculated provider-to-pickup distance: ${distanceResult.distance}`)
+    return distanceResult.distance
+    
+  } catch (error) {
+    console.error('Error calculating provider-to-pickup distance:', error.message)
+    return '' // Return empty string on error to avoid breaking ride creation
+  }
+}
 
 // Helper function to get patient email from EHR sheet
 const getPatientEmail = async (patientId) => {
@@ -234,7 +286,25 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
     const confirmationToken = generateConfirmationToken()
     storeConfirmationToken(newId, confirmationToken)
 
-    // Prepare ride data with defaults
+    // Calculate day of the week from appointment date
+    const dayOfWeek = calculateDayOfWeek(rideData.appointmentDate)
+    console.log(`Calculated day of week for ${rideData.appointmentDate}: ${dayOfWeek}`)
+
+    // Calculate distance from provider to pickup location
+    let distanceToProvider = ''
+    const providerLocation = rideData.providerLocation || rideData.appointmentLocation || ''
+    const pickupLocation = rideData.pickupLocation || ''
+    
+    if (providerLocation && pickupLocation) {
+      try {
+        distanceToProvider = await calculateProviderToPickupDistance(providerLocation, pickupLocation)
+      } catch (distanceError) {
+        console.error('Failed to calculate distance during ride creation:', distanceError.message)
+        // Continue with ride creation even if distance calculation fails
+      }
+    }
+
+    // Prepare ride data with defaults (now includes calculated DOTW and distance)
     const rideValues = [
       orgId, // A
       newId, // B
@@ -245,14 +315,18 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       '', // G - pickupTime - empty until assigned
       rideData.roundTrip === true || rideData.roundTrip === 'true' ? 'true' : 'false', // H
       rideData.appointmentTime || '', // I
-      rideData.providerLocation || rideData.appointmentLocation || '', // J
+      providerLocation, // J - providerLocation
       'pending', // K - status (starts as pending, changes to confirmed after email confirmation)
       rideData.notes || '', // L
-      rideData.pickupLocation || '', // M
-      rideData.driverId || '', // N - Driver ID (new field)
-      rideData.driverName || '', // O - Driver Name (shifted)
-      rideData.driverPlate || '', // P - Driver License Plate (shifted)
+      pickupLocation, // M - pickupLocation
+      rideData.driverId || '', // N - Driver ID
+      rideData.driverName || '', // O - Driver Name
+      rideData.driverPlate || '', // P - Driver License Plate
       rideData.driverCar || '', // Q - Driver Car
+      dayOfWeek, // R - Day of the Week (calculated)
+      distanceToProvider, // S - Distance to provider (calculated)
+      '', // T - Distance to driver (calculated when driver claims)
+      '' // U - Distance traveled (calculated when driver claims)
     ]
 
     // Add ride to sheet
@@ -275,9 +349,9 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       appointmentDate: rideData.appointmentDate,
       appointmentId: rideData.appointmentId,
       appointmentTime: rideData.appointmentTime,
-      providerLocation: rideData.providerLocation || rideData.appointmentLocation,
+      providerLocation: providerLocation,
       providerName: rideData.providerName,
-      pickupLocation: rideData.pickupLocation,
+      pickupLocation: pickupLocation,
       notes: rideData.notes,
       pickupTime: '',
       roundTrip: rideData.roundTrip === true || rideData.roundTrip === 'true',
@@ -285,6 +359,8 @@ router.post('/:orgId/rides', authenticateToken, async (req, res) => {
       driverName: rideData.driverName,
       driverPlate: rideData.driverPlate,
       driverCar: rideData.driverCar,
+      dayOfWeek: dayOfWeek, // Add calculated day of week
+      distanceToProvider: distanceToProvider, // Add calculated distance
       status: 'pending',
       confirmationToken: confirmationToken,
       createdAt: new Date().toISOString()
