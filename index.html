@@ -1,33 +1,88 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/ECEG301/provider/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Provider Portal</title>
-    
-    <!-- GitHub Pages SPA redirect script -->
-    <script type="text/javascript">
-      // Single Page Apps for GitHub Pages
-      // This script checks to see if a redirect is present in the query string
-      (function(l) {
-        if (l.search[1] === '/' ) {
-          var decoded = l.search.slice(1).split('&').map(function(s) { 
-            return s.replace(/~and~/g, '&')
-          }).join('?');
-          window.history.replaceState(null, null,
-              l.pathname.slice(0, -1) + decoded + l.hash
-          );
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediRide - Healthcare Transportation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-      }(window.location))
-    </script>
-    <script type="module" crossorigin src="/ECEG301/provider/assets/index-YueLIS_r.js"></script>
-    <link rel="modulepreload" crossorigin href="/ECEG301/provider/assets/vendor-OvXVS5lI.js">
-    <link rel="modulepreload" crossorigin href="/ECEG301/provider/assets/router-U5gHlwPV.js">
-    <link rel="stylesheet" crossorigin href="/ECEG301/provider/assets/index-DdfLIHH3.css">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </body>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            max-width: 600px;
+        }
+        h1 {
+            color: white;
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+        }
+        .portal-links {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .portal-card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px 40px;
+            text-decoration: none;
+            color: #333;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            transition: transform 0.3s, box-shadow 0.3s;
+            min-width: 200px;
+        }
+        .portal-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+        }
+        .portal-card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: #2563eb;
+        }
+        .portal-card p {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+        .portal-card.driver h2 {
+            color: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MediRide</h1>
+        <p>Healthcare Transportation Management System</p>
+        <div class="portal-links">
+            <a href="./provider/" class="portal-card">
+                <h2>Provider Portal</h2>
+                <p>For healthcare providers to manage patient transportation</p>
+            </a>
+            <a href="./driver/" class="portal-card driver">
+                <h2>Driver Portal</h2>
+                <p>For drivers to view and manage ride assignments</p>
+            </a>
+        </div>
+    </div>
+</body>
 </html>
