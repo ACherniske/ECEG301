@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { X, Clock, MapPin, Calendar, CheckCircle, Car } from 'lucide-react'
-import { Button } from '../shared/Button'
+import { Button } from './shared/Button'
 import { useDriverStore } from '../../store/driverStore'
 
 export const AcceptRideModal = ({ ride, onClose, onConfirm }) => {
@@ -62,13 +62,13 @@ export const AcceptRideModal = ({ ride, onClose, onConfirm }) => {
             
             <div className="space-y-2 text-sm">
               <div className="flex items-start gap-2">
-                <MapPin size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                <MapPin size={16} className="text-blue-600 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-blue-700 font-medium">{ride.appointmentLocation || ride.location}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Calendar size={16} className="text-blue-600 flex-shrink-0" />
+                <Calendar size={16} className="text-blue-600 shrink-0" />
                 <p className="text-blue-700">
                   {ride.appointmentDate} at {ride.appointmentTime}
                 </p>
@@ -127,7 +127,7 @@ export const AcceptRideModal = ({ ride, onClose, onConfirm }) => {
           {ride.specialRequirements && (
             <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
               <div className="flex items-start gap-2">
-                <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center flex-shrink-0">
+                <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
                   <span className="text-orange-700 font-bold text-sm">!</span>
                 </div>
                 <div>

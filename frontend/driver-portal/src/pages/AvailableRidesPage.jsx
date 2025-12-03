@@ -3,7 +3,7 @@ import { useDriverStore } from '../store/driverStore'
 import { useRideStore } from '../store/rideStore'
 import { rideService } from '../services/rideService'
 import { BottomNav } from '../components/shared/BottomNav'
-import { EnhancedRideCard } from '../components/driver/EnhancedRideCard'
+import { EnhancedRideCard } from '../components/driver/RideCard'
 import { RefreshCw, TrendingUp, Star } from 'lucide-react'
 
 export default function AvailableRidesPage() {
@@ -36,7 +36,12 @@ export default function AvailableRidesPage() {
 
   const handleAcceptRide = async (ride) => {
     try {
-      await rideService.acceptRide(ride.id)
+      const result = await rideService.acceptRide(ride.id)
+      
+      // Show success message with calculated pickup time
+      const pickupTime = result.pickupTime || 'TBD'
+      alert(`Ride accepted successfully! 🎉\n\nCalculated pickup time: ${pickupTime}\n\nThis time is based on:\n- Appointment time: ${ride.appointmentTime}\n- Travel time to appointment\n- 15-minute buffer for preparation`)
+      
       // Refresh the list after accepting a ride
       await fetchAvailableRides()
     } catch (error) {
