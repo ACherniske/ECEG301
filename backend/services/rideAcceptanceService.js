@@ -1,4 +1,4 @@
-import { calculateRealDistance } from './mapsService.js'
+import { calculateRealDistance, calculateMultipleDistances } from './mapsService.js'
 
 /**
  * Ride Acceptance Calculation Service
@@ -278,26 +278,133 @@ function getAcceptanceReason(factors, eligible) {
 
 /**
  * Process multiple rides for a driver and return them sorted by acceptance score
+ * Optimized to minimize Google Maps API calls using batch processing
  */
 export async function processRidesForDriver(rides, driver, options = {}) {
     console.log(`🔄 Processing ${rides.length} rides for driver acceptance scoring...`)
 
+    if (!driver.address) {
+        console.warn('Driver has no address, cannot calculate distances')
+        // Return rides with minimal scores
+        return {
+            rides: rides.map(ride => ({
+                ...ride,
+                acceptance: {
+                    score: 0,
+                    rank: 1,
+                    factors: { error: 'No driver address' },
+                    eligible: false,
+                    reason: 'Driver address not available'
+                }
+            })),
+            summary: { totalCount: rides.length, eligibleCount: 0, ineligibleCount: rides.length, averageScore: 0, topScore: 0 }
+        }
+    }
+
+    // Prepare batch distance requests
+    const distanceRequests = rides
+        .filter(ride => ride.pickupLocation) // Only rides with pickup locations
+        .map(ride => ({
+            origin: driver.address,
+            destination: ride.pickupLocation,
+            rideId: ride.id || ride.rideId
+        }))
+
+    console.log(`📏 Batch calculating ${distanceRequests.length} distances...`)
+
+    // Calculate all distances in batch
+    const distanceResults = await calculateMultipleDistances(distanceRequests)
+
+    // Create a map of ride ID to distance result
+    const distanceMap = new Map()
+    distanceRequests.forEach((request, index) => {
+        distanceMap.set(request.rideId, distanceResults[index])
+    })
+
+    // Process each ride with pre-calculated distances
     const scoredRides = []
-    const batchSize = 5 // Process in batches to avoid overwhelming the API
     
-    for (let i = 0; i < rides.length; i += batchSize) {
-        const batch = rides.slice(i, i + batchSize)
-        
-        const batchPromises = batch.map(ride => 
-            calculateRideAcceptanceScore(ride, driver, options)
-        )
-        
-        const batchResults = await Promise.all(batchPromises)
-        scoredRides.push(...batchResults)
-        
-        // Small delay between batches to be API-friendly
-        if (i + batchSize < rides.length) {
-            await new Promise(resolve => setTimeout(resolve, 200))
+    for (const ride of rides) {
+        try {
+            const rideId = ride.id || ride.rideId
+            let score = 0
+            const factors = {}
+
+            // Distance factor (using pre-calculated result)
+            const distanceResult = distanceMap.get(rideId)
+            if (distanceResult && ride.pickupLocation) {
+                const { maxDistance = 50 } = options
+                const distanceMiles = parseFloat(distanceResult.distance?.replace(/[^\d.]/g, '') || '999')
+                
+                if (distanceMiles > maxDistance) {
+                    factors.distance = {
+                        score: 0,
+                        distance: distanceMiles,
+                        duration: distanceResult.duration,
+                        totalDistance: calculateTotalTripDistance(ride, distanceMiles).totalDistance,
+                        totalTime: calculateTotalTripDistance(ride, distanceMiles).totalTime,
+                        reason: `Distance (${distanceMiles} mi) exceeds maximum (${maxDistance} mi)`
+                    }
+                } else {
+                    const normalizedDistance = distanceMiles / maxDistance
+                    const distanceScore = Math.max(0.1, 1.0 - normalizedDistance)
+                    const totalTripInfo = calculateTotalTripDistance(ride, distanceMiles)
+                    
+                    factors.distance = {
+                        score: distanceScore,
+                        distance: distanceMiles,
+                        duration: distanceResult.duration,
+                        totalDistance: totalTripInfo.totalDistance,
+                        totalTime: totalTripInfo.totalTime,
+                        reason: `${distanceMiles} miles from driver${totalTripInfo.isRoundTrip ? ` (${totalTripInfo.totalDistance} mi total)` : ''}`
+                    }
+                    score += distanceScore * (options.distanceWeight || 1.0)
+                }
+            } else {
+                factors.distance = {
+                    score: 0.1,
+                    distance: 999,
+                    reason: 'Missing location data'
+                }
+            }
+
+            // Time factor
+            const timeScore = calculateTimeFactor(ride, driver)
+            factors.time = timeScore
+            score += timeScore.score * (options.timeWeight || 0.3)
+
+            // Urgency factor
+            const urgencyScore = calculateUrgencyFactor(ride)
+            factors.urgency = urgencyScore
+            score += urgencyScore.score * (options.urgencyWeight || 0.2)
+
+            // Normalize final score to 0-100 range
+            const finalScore = Math.min(Math.max(score * 100, 0), 100)
+            const eligible = factors.distance.distance <= (options.maxDistance || 50)
+
+            scoredRides.push({
+                ...ride,
+                acceptance: {
+                    score: finalScore,
+                    rank: 0, // Will be set after sorting
+                    factors,
+                    eligible,
+                    reason: getAcceptanceReason(factors, eligible)
+                }
+            })
+
+        } catch (error) {
+            console.error('Error processing ride:', error)
+            scoredRides.push({
+                ...ride,
+                acceptance: {
+                    score: 0,
+                    rank: 999,
+                    factors: { error: error.message },
+                    eligible: false,
+                    reason: 'Unable to calculate acceptance score'
+                }
+            })
         }
     }
 
@@ -311,7 +418,9 @@ export async function processRidesForDriver(rides, driver, options = {}) {
 
     console.log(`✅ Processed ${scoredRides.length} rides with acceptance scoring`)
     console.log(`   🏆 Top ride: ${scoredRides[0]?.acceptance.score.toFixed(1)} points`)
-    console.log(`   📍 Distance range: ${scoredRides[scoredRides.length - 1]?.acceptance.factors.distance?.distance.toFixed(1)} - ${scoredRides[0]?.acceptance.factors.distance?.distance.toFixed(1)} miles`)
+    if (scoredRides.length > 0) {
+        console.log(`   📍 Distance range: ${scoredRides[scoredRides.length - 1]?.acceptance.factors.distance?.distance.toFixed(1)} - ${scoredRides[0]?.acceptance.factors.distance?.distance.toFixed(1)} miles`)
+    }
 
     return {
         rides: scoredRides,

@@ -1,5 +1,6 @@
 import { Client } from '@googlemaps/google-maps-services-js'
 import dotenv from 'dotenv'
+import { distanceCache } from './distanceCache.js'
 
 dotenv.config()
 
@@ -17,10 +18,18 @@ export async function calculateRealDistance(origin, destination) {
             throw new Error('Origin and destination addresses are required')
         }
 
+        // Check cache first
+        const cachedResult = distanceCache.get(origin, destination)
+        if (cachedResult) {
+            return cachedResult
+        }
+
         if (!process.env.GOOGLE_MAPS_API_KEY) {
             console.warn('Google Maps API key not found, using fallback calculation')
             return fallbackDistanceCalculation(origin, destination)
         }
+
+        console.log(`🗺️  API CALL: Calculating distance ${origin} → ${destination}`)
 
         const response = await client.distancematrix({
             params: {
@@ -39,15 +48,108 @@ export async function calculateRealDistance(origin, destination) {
             return fallbackDistanceCalculation(origin, destination)
         }
 
-        return {
+        const result = {
             distance: element.distance.text,
             duration: element.duration.text,
             distanceValue: element.distance.value, // in meters
             durationValue: element.duration.value  // in seconds
         }
+
+        // Cache the result
+        distanceCache.set(origin, destination, result)
+
+        return result
     } catch (error) {
         console.error('Google Maps API error:', error.message)
         return fallbackDistanceCalculation(origin, destination)
+    }
+}
+
+/**
+ * Calculate multiple distances in a single API call (batch optimization)
+ * @param {Array} requests - Array of {origin, destination} objects
+ * @returns {Promise<Array>} Array of distance results
+ */
+export async function calculateMultipleDistances(requests) {
+    try {
+        if (!requests || requests.length === 0) {
+            return []
+        }
+
+        // Filter out requests that are already cached
+        const uncachedRequests = []
+        const results = new Array(requests.length)
+
+        requests.forEach((request, index) => {
+            const cached = distanceCache.get(request.origin, request.destination)
+            if (cached) {
+                results[index] = cached
+            } else {
+                uncachedRequests.push({ ...request, originalIndex: index })
+            }
+        })
+
+        if (uncachedRequests.length === 0) {
+            console.log(`🎯 All ${requests.length} distances found in cache!`)
+            return results
+        }
+
+        if (!process.env.GOOGLE_MAPS_API_KEY) {
+            console.warn('Google Maps API key not found, using fallback calculation')
+            // Fill in uncached requests with fallback calculations
+            for (const request of uncachedRequests) {
+                results[request.originalIndex] = fallbackDistanceCalculation(request.origin, request.destination)
+            }
+            return results
+        }
+
+        console.log(`🗺️  BATCH API CALL: ${uncachedRequests.length} distances (${requests.length - uncachedRequests.length} cached)`)
+
+        // Extract unique origins and destinations for batch processing
+        const origins = [...new Set(uncachedRequests.map(r => r.origin))]
+        const destinations = [...new Set(uncachedRequests.map(r => r.destination))]
+
+        const response = await client.distancematrix({
+            params: {
+                origins,
+                destinations,
+                units: 'imperial',
+                mode: 'driving',
+                key: process.env.GOOGLE_MAPS_API_KEY,
+            },
+        })
+
+        // Process batch results
+        for (const request of uncachedRequests) {
+            const originIndex = origins.indexOf(request.origin)
+            const destIndex = destinations.indexOf(request.destination)
+            
+            const element = response.data.rows[originIndex]?.elements[destIndex]
+            
+            let result
+            if (element && element.status === 'OK') {
+                result = {
+                    distance: element.distance.text,
+                    duration: element.duration.text,
+                    distanceValue: element.distance.value,
+                    durationValue: element.duration.value
+                }
+                // Cache the successful result
+                distanceCache.set(request.origin, request.destination, result)
+            } else {
+                console.warn(`Batch distance calculation failed for ${request.origin} to ${request.destination}:`, element?.status)
+                result = fallbackDistanceCalculation(request.origin, request.destination)
+            }
+            
+            results[request.originalIndex] = result
+        }
+
+        return results
+
+    } catch (error) {
+        console.error('Batch Google Maps API error:', error.message)
+        // Fallback to individual calculations
+        return requests.map(req => fallbackDistanceCalculation(req.origin, req.destination))
     }
 }
 

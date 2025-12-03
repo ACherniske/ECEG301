@@ -1,0 +1,58 @@
+[
+  [
+    "44374603176e55488714f635102920bb",
+    {
+      "result": {
+        "distance": "11.5 mi",
+        "duration": "17 mins",
+        "distanceValue": 18582,
+        "durationValue": 1017
+      },
+      "timestamp": 1764745075407,
+      "origin": "one dent dr, lewisburg, pa 17837",
+      "destination": "789 chestnut st, sunbury, pa 17801"
+    }
+  ],
+  [
+    "d060abb6f23cfc1d2453b846b393f84c",
+    {
+      "result": {
+        "distance": "16.8 mi",
+        "duration": "26 mins",
+        "distanceValue": 27092,
+        "durationValue": 1556
+      },
+      "timestamp": 1764745075408,
+      "origin": "one dent dr, lewisburg, pa 17837",
+      "destination": "567 bloom st, danville, pa 17821"
+    }
+  ],
+  [
+    "bd63cd36de3528dd9aeb1061ae46d4cd",
+    {
+      "result": {
+        "distance": "13.3 mi",
+        "duration": "22 mins",
+        "distanceValue": 21347,
+        "durationValue": 1311
+      },
+      "timestamp": 1764745075409,
+      "origin": "one dent dr, lewisburg, pa 17837",
+      "destination": "345 orange st, selinsgrove, pa 17870"
+    }
+  ],
+  [
+    "d871e7c3ccdd2f255354e34f327931fa",
+    {
+      "result": {
+        "distance": "5.4 mi",
+        "duration": "12 mins",
+        "distanceValue": 8703,
+        "durationValue": 727
+      },
+      "timestamp": 1764745075409,
+      "origin": "one dent dr, lewisburg, pa 17837",
+      "destination": "123 broadway, milton, pa 17847"
+    }
+  ]
+]
