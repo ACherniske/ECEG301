@@ -42,7 +42,7 @@ router.get('/profile', authenticateToken, requireDriverRole, async (req, res) =>
             const row = rows[i]
             if (row[0] === driverId) {
                 const safeRow = [...row]
-                while (safeRow.length < 10) safeRow.push('')
+                while (safeRow.length < 11) safeRow.push('')
                 
                 const driver = {
                     userId: safeRow[0],
@@ -54,7 +54,8 @@ router.get('/profile', authenticateToken, requireDriverRole, async (req, res) =>
                     // Don't return password for security
                     address: safeRow[7],
                     driverMake: safeRow[8],
-                    driverModel: safeRow[9]
+                    driverModel: safeRow[9],
+                    licensePlate: safeRow[10]
                 }
                 
                 return res.json(driver)
@@ -246,6 +247,91 @@ router.post('/rides/:rideId/claim', authenticateToken, requireDriverRole, async 
         })
     } catch (error) {
         console.error('Error claiming ride:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// PUT /api/driver/profile - Update driver profile
+router.put('/profile', authenticateToken, requireDriverRole, async (req, res) => {
+    try {
+        const driverId = req.user.id
+        const { firstName, lastName, address, driverMake, driverModel, licensePlate } = req.body
+
+        const sheets = getSheets()
+        
+        // First, find the driver row
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${DRIVER_ACCOUNTS_SHEET}!${RANGES.DRIVERS}`,
+        })
+
+        const rows = response.data.values || []
+        let driverRowIndex = -1
+        
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i]
+            if (row[0] === driverId) {
+                driverRowIndex = i + 1 // 1-based for sheets API
+                break
+            }
+        }
+
+        if (driverRowIndex === -1) {
+            return res.status(404).json({ error: 'Driver profile not found' })
+        }
+
+        // Get current row data
+        const currentRow = rows[driverRowIndex - 1]
+        const safeRow = [...currentRow]
+        while (safeRow.length < 11) safeRow.push('')
+
+        // Update only provided fields
+        const updatedRow = [
+            safeRow[0], // userId (unchanged)
+            safeRow[1], // email (unchanged)
+            firstName || safeRow[2], // firstName
+            lastName || safeRow[3], // lastName
+            safeRow[4], // status (unchanged)
+            safeRow[5], // createdAt (unchanged)
+            safeRow[6], // password (unchanged)
+            address || safeRow[7], // address
+            driverMake !== undefined ? driverMake : safeRow[8], // driverMake
+            driverModel !== undefined ? driverModel : safeRow[9], // driverModel
+            licensePlate !== undefined ? licensePlate : safeRow[10] // licensePlate
+        ]
+
+        // Update the driver profile
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SHEET_ID,
+            range: `${DRIVER_ACCOUNTS_SHEET}!A${driverRowIndex}:K${driverRowIndex}`,
+            valueInputOption: 'USER_ENTERED',
+            resource: {
+                values: [updatedRow]
+            }
+        })
+
+        // Return updated profile (excluding password)
+        const updatedProfile = {
+            userId: updatedRow[0],
+            email: updatedRow[1],
+            firstName: updatedRow[2],
+            lastName: updatedRow[3],
+            status: updatedRow[4],
+            createdAt: updatedRow[5],
+            address: updatedRow[7],
+            driverMake: updatedRow[8],
+            driverModel: updatedRow[9],
+            licensePlate: updatedRow[10]
+        }
+
+        console.log(`Driver ${driverId} updated their profile`)
+        res.json({ 
+            success: true, 
+            message: 'Profile updated successfully',
+            driver: updatedProfile
+        })
+    } catch (error) {
+        console.error('Error updating driver profile:', error)
         res.status(500).json({ error: error.message })
     }
 })
