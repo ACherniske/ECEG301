@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, MapPin, Calendar, Clock, CheckCircle, RotateCcw, AlertCircle, Search, Filter, ChevronDown, RefreshCw } from 'lucide-react'
+import { ChevronLeft, MapPin, Calendar, Clock, CheckCircle, RotateCcw, AlertCircle, Search, Filter, ChevronDown, RefreshCw, Ruler } from 'lucide-react'
 import { BottomNav } from '../components/shared/BottomNav'
 import { Card } from '../components/shared/Card'
 import { rideService } from '../services/rideService'
@@ -73,8 +73,8 @@ const HistoryRideCard = ({ ride }) => {
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Pickup</p>
             <p className="text-sm text-gray-900 leading-snug">{ride.pickupLocation || ride.patientAddress}</p>
             {ride.pickupTime && (
-              <p className="text-xs text-blue-600 font-bold mt-1">
-                🕐 {ride.pickupTime}
+              <p className="text-xs text-blue-600 font-bold mt-1 flex items-center gap-1">
+                <Clock size={12} /> {ride.pickupTime}
               </p>
             )}
           </div>
@@ -91,8 +91,8 @@ const HistoryRideCard = ({ ride }) => {
           <div className="flex-1 min-w-0">
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Destination</p>
             <p className="text-sm text-gray-900 leading-snug">{ride.providerLocation || ride.appointmentLocation || ride.location}</p>
-            <p className="text-xs text-gray-600 mt-1">
-              📅 {ride.appointmentDate} at {ride.appointmentTime}
+            <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
+              <Calendar size={12} /> {ride.appointmentDate} at {ride.appointmentTime}
             </p>
           </div>
         </div>
@@ -105,7 +105,7 @@ const HistoryRideCard = ({ ride }) => {
           <div className="bg-green-50 border border-green-200 rounded-lg p-3">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-                <span className="text-green-600 text-xs font-bold">📏</span>
+                <Ruler size={12} className="text-green-600" />
               </div>
               <div>
                 <p className="text-xs font-semibold text-green-700 mb-0.5">Distance Traveled</p>

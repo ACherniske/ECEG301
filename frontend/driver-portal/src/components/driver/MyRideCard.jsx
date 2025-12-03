@@ -63,8 +63,8 @@ export const MyRideCard = ({ ride, onStartRide, onViewDetails, onCancel }) => {
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Pickup</p>
             <p className="text-sm text-gray-900 leading-snug">{ride.pickupLocation || ride.patientAddress}</p>
             {ride.pickupTime && (
-              <p className="text-xs text-blue-600 font-bold mt-1">
-                🕐 {ride.pickupTime}
+              <p className="text-xs text-blue-600 font-bold mt-1 flex items-center gap-1">
+                <Clock size={12} /> {ride.pickupTime}
               </p>
             )}
           </div>
@@ -81,8 +81,8 @@ export const MyRideCard = ({ ride, onStartRide, onViewDetails, onCancel }) => {
           <div className="flex-1 min-w-0">
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Destination</p>
             <p className="text-sm text-gray-900 leading-snug">{ride.appointmentLocation || ride.location}</p>
-            <p className="text-xs text-gray-600 mt-1">
-              📅 {ride.appointmentDate} at {ride.appointmentTime}
+            <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
+              <Calendar size={12} /> {ride.appointmentDate} at {ride.appointmentTime}
             </p>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useRideStore } from '../store/rideStore'
 import { rideService } from '../services/rideService'
 import { BottomNav } from '../components/shared/BottomNav'
 import { EnhancedRideCard } from '../components/driver/RideCard'
-import { RefreshCw, TrendingUp, Star } from 'lucide-react'
+import { RefreshCw, TrendingUp, Star, PartyPopper } from 'lucide-react'
 
 export default function AvailableRidesPage() {
   const { organizationId } = useDriverStore()
@@ -40,7 +40,7 @@ export default function AvailableRidesPage() {
       
       // Show success message with calculated pickup time
       const pickupTime = result.pickupTime || 'TBD'
-      alert(`Ride accepted successfully! 🎉\n\nCalculated pickup time: ${pickupTime}\n\nThis time is based on:\n- Appointment time: ${ride.appointmentTime}\n- Travel time to appointment\n- 15-minute buffer for preparation`)
+      alert(`Ride accepted successfully!\n\nCalculated pickup time: ${pickupTime}\n\nThis time is based on:\n- Appointment time: ${ride.appointmentTime}\n- Travel time to appointment\n- 15-minute buffer for preparation`)
       
       // Refresh the list after accepting a ride
       await fetchAvailableRides()
