@@ -396,6 +396,7 @@ router.get('/statistics', authenticateToken, requireDriverRole, async (req, res)
         // Filter rides assigned to this driver and count statistics
         let totalRides = 0
         let completedRides = 0
+        let totalDistanceTraveled = 0
 
         console.log(`Checking rides for driver ${driverId}...`)
         console.log(`Total rows found: ${rows.length}`)
@@ -422,11 +423,29 @@ router.get('/statistics', authenticateToken, requireDriverRole, async (req, res)
             if (safeRow[13] === driverId) { // Column 13: driverId
                 totalRides++
                 console.log(`✓ Found ride for driver: ${safeRow[1]} (status: ${safeRow[10]})`)
+                console.log(`   Row data length: ${safeRow.length}, Distance column [20]: "${safeRow[20]}"`)
                 
                 // Check if ride is completed (status: 'completed')
                 if (safeRow[10] === 'completed') { // Column 10: status
                     completedRides++
                     console.log(`✓ Completed ride: ${safeRow[1]}`)
+                    
+                    // Calculate total distance from distanceTraveled (Column U/20)
+                    const distanceTraveledStr = safeRow[20] || '' // Column U: distanceTraveled
+                    console.log(`   Checking distance: "${distanceTraveledStr}"`)
+                    if (distanceTraveledStr && distanceTraveledStr !== '0 mi' && distanceTraveledStr !== '0') {
+                        // Handle both formats: "17.3 mi" and "17.3"
+                        const match = distanceTraveledStr.match(/^([\d.]+)(?:\s*mi)?$/)
+                        if (match) {
+                            const distanceValue = parseFloat(match[1])
+                            totalDistanceTraveled += distanceValue
+                            console.log(`   📏 Adding ${distanceValue} mi to total distance (running total: ${totalDistanceTraveled})`)
+                        } else {
+                            console.log(`   ❌ Distance string "${distanceTraveledStr}" didn't match regex pattern`)
+                        }
+                    } else {
+                        console.log(`   ⚠️  No distance data for completed ride`)
+                    }
                 }
             }
         }
@@ -436,7 +455,8 @@ router.get('/statistics', authenticateToken, requireDriverRole, async (req, res)
         const statistics = {
             totalRides,
             completedRides,
-            completionRate
+            completionRate,
+            totalDistanceTraveled: Math.round(totalDistanceTraveled * 10) / 10 // Round to 1 decimal
         }
 
         console.log(`Driver ${driverId} statistics: ${JSON.stringify(statistics)}`)
@@ -598,6 +618,52 @@ router.put('/rides/:rideId/status', authenticateToken, requireDriverRole, async 
                 range: `${RIDES_SHEET}!L${rideRowIndex}`,
                 values: [[updatedNotes]]
             })
+        }
+
+        // If completed, calculate and store total distance traveled (Column U)
+        if (status === 'completed') {
+            try {
+                const currentRow = rows[rideRowIndex - 1]
+                const safeRow = [...currentRow]
+                while (safeRow.length < 21) safeRow.push('')
+                
+                const pickupLocation = safeRow[12] || '' // Column M: pickupLocation
+                const providerLocation = safeRow[9] || '' // Column J: providerLocation
+                const isRoundTrip = safeRow[7] === 'true' || safeRow[7] === true // Column H: roundTrip
+                
+                // Get driver address to calculate total distance
+                let driverAddress = ''
+                const driverResponse = await sheets.spreadsheets.values.get({
+                    spreadsheetId: SHEET_ID,
+                    range: `${DRIVER_ACCOUNTS_SHEET}!${RANGES.DRIVERS}`,
+                })
+                
+                const driverRows = driverResponse.data.values || []
+                for (let j = 1; j < driverRows.length; j++) {
+                    const driverRow = driverRows[j]
+                    if (driverRow[0] === driverId) { // Column A: userId (consistent with other lookups)
+                        driverAddress = driverRow[7] || '' // Column H: address
+                        break
+                    }
+                }
+                
+                if (driverAddress && pickupLocation && providerLocation) {
+                    console.log(`Calculating total distance for completed ride ${rideId}`)
+                    const totalDistanceResult = await calculateTotalRideDistance(driverAddress, pickupLocation, providerLocation, isRoundTrip)
+                    
+                    updates.push({
+                        range: `${RIDES_SHEET}!U${rideRowIndex}`,
+                        values: [[totalDistanceResult.totalDistance]]
+                    })
+                    
+                    console.log(`✅ Total distance calculated: ${totalDistanceResult.totalDistance}`)
+                } else {
+                    console.warn('Missing location data for distance calculation')
+                }
+            } catch (distanceError) {
+                console.error('Failed to calculate distance for completed ride:', distanceError.message)
+                // Continue without updating distance - ride completion is more important
+            }
         }
 
         // Batch update

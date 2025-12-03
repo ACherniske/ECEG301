@@ -97,11 +97,23 @@ export default function ProfilePage() {
 
   if (loading && !profile) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading profile...</p>
+      <div className="min-h-screen bg-gray-50 pb-20">
+        {/* Header Section */}
+        <div className="bg-blue-600 text-white p-6 pb-12 rounded-b-3xl shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Profile</h1>
+              <p className="text-blue-100 mt-1">Loading driver information...</p>
+            </div>
+          </div>
         </div>
+        <div className="p-4 flex items-center justify-center pt-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading profile...</p>
+          </div>
+        </div>
+        <BottomNav />
       </div>
     )
   }
@@ -268,6 +280,14 @@ export default function ProfilePage() {
                 {statistics?.completionRate !== undefined ? `${statistics.completionRate}%` : '--%'}
               </div>
               <div className="text-sm text-gray-500">Completion</div>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4">
+            <div className="text-center p-4 bg-orange-50 rounded-xl">
+              <div className="text-2xl font-bold text-orange-600">
+                {statistics?.totalDistanceTraveled !== undefined ? `${statistics.totalDistanceTraveled} mi` : '-- mi'}
+              </div>
+              <div className="text-sm text-gray-500">Total Distance</div>
             </div>
           </div>
           {statistics && statistics.totalRides > 0 && (
