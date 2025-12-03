@@ -5,8 +5,17 @@
  * Written with the assistance of Claude Sonnet through github copilot
  */
 
+const { Client } = require('@googlemaps/google-maps-services-js');
+
 class RideAcceptanceModel {
-    constructor() {
+    constructor(googleMapsApiKey) {
+        // Initialize Google Maps client
+        if (!googleMapsApiKey) {
+            throw new Error('Google Maps API key is required');
+        }
+        this.googleMapsClient = new Client({});
+        this.googleMapsApiKey = googleMapsApiKey;
+        
         // Model coefficients (weights) - these would typically be learned from training data
         // Adjusted for more realistic probability distributions
         this.coefficients = {
@@ -52,9 +61,41 @@ class RideAcceptanceModel {
     }
 
     /**
-     * Calculate distance between two points using Haversine formula
+     * Calculate driving distance between two points using Google Maps Distance Matrix API
      */
-    calculateDistance(lat1, lon1, lat2, lon2) {
+    async calculateDistance(lat1, lon1, lat2, lon2) {
+        try {
+            const response = await this.googleMapsClient.distancematrix({
+                params: {
+                    origins: [`${lat1},${lon1}`],
+                    destinations: [`${lat2},${lon2}`],
+                    mode: 'driving',
+                    units: 'imperial', // Get results in miles
+                    key: this.googleMapsApiKey,
+                },
+            });
+
+            if (response.data.rows[0].elements[0].status === 'OK') {
+                // Distance is returned in meters, convert to miles
+                const distanceInMeters = response.data.rows[0].elements[0].distance.value;
+                const distanceInMiles = distanceInMeters / 1609.34;
+                return distanceInMiles;
+            } else {
+                console.error('Google Maps API error:', response.data.rows[0].elements[0].status);
+                // Fallback to Haversine formula if API fails
+                return this.calculateDistanceHaversine(lat1, lon1, lat2, lon2);
+            }
+        } catch (error) {
+            console.error('Error calling Google Maps API:', error.message);
+            // Fallback to Haversine formula if API call fails
+            return this.calculateDistanceHaversine(lat1, lon1, lat2, lon2);
+        }
+    }
+
+    /**
+     * Fallback: Calculate distance using Haversine formula (straight-line distance)
+     */
+    calculateDistanceHaversine(lat1, lon1, lat2, lon2) {
         const R = 3959; // Earth's radius in miles
         const dLat = this.toRadians(lat2 - lat1);
         const dLon = this.toRadians(lon2 - lon1);
@@ -74,15 +115,15 @@ class RideAcceptanceModel {
     /**
      * Extract features for a user-ride pair
      */
-    extractFeatures(user, ride) {
+    async extractFeatures(user, ride) {
         const userLat = parseFloat(user['Current Latitude']);
         const userLon = parseFloat(user['Current Longitude']);
         const rideLat = parseFloat(ride['Origin Latitude']);
         const rideLon = parseFloat(ride['Origin Longitude']);
         const rideDistance = parseFloat(ride['Distance (miles)']);
         
-        // Distance from user to ride origin
-        const distanceFromUser = this.calculateDistance(userLat, userLon, rideLat, rideLon);
+        // Distance from user to ride origin using Google Maps API
+        const distanceFromUser = await this.calculateDistance(userLat, userLon, rideLat, rideLon);
         
         // Time-based features
         const rideTime = ride['Scheduled Time (24hr)'] || ride['Time of Day (24hr)'];
@@ -204,23 +245,25 @@ class RideAcceptanceModel {
     /**
      * Score all available rides for a specific user
      */
-    scoreRidesForUser(userId) {
+    async scoreRidesForUser(userId) {
         const user = this.userData.find(u => u['User ID'] === userId);
         if (!user) {
             throw new Error(`User ${userId} not found`);
         }
 
-        const scoredRides = this.availableRides.map(ride => {
-            const features = this.extractFeatures(user, ride);
-            const probability = this.calculateProbability(features);
-            
-            return {
-                rideId: ride['Ride ID'],
-                probability: probability,
-                features: features,
-                rideDetails: ride
-            };
-        });
+        const scoredRides = await Promise.all(
+            this.availableRides.map(async (ride) => {
+                const features = await this.extractFeatures(user, ride);
+                const probability = this.calculateProbability(features);
+                
+                return {
+                    rideId: ride['Ride ID'],
+                    probability: probability,
+                    features: features,
+                    rideDetails: ride
+                };
+            })
+        );
 
         // Sort by probability (highest first)
         return scoredRides.sort((a, b) => b.probability - a.probability);
@@ -229,8 +272,8 @@ class RideAcceptanceModel {
     /**
      * Get top N ride recommendations for a user
      */
-    getTopRecommendations(userId, topN = 5) {
-        const scoredRides = this.scoreRidesForUser(userId);
+    async getTopRecommendations(userId, topN = 5) {
+        const scoredRides = await this.scoreRidesForUser(userId);
         return scoredRides.slice(0, topN);
     }
 
@@ -260,7 +303,7 @@ class RideAcceptanceModel {
     /**
      * Generate detailed explanation for a prediction
      */
-    explainPrediction(userId, rideId) {
+    async explainPrediction(userId, rideId) {
         const user = this.userData.find(u => u['User ID'] === userId);
         const ride = this.availableRides.find(r => r['Ride ID'] === rideId);
         
@@ -268,7 +311,7 @@ class RideAcceptanceModel {
             return 'User or ride not found';
         }
 
-        const features = this.extractFeatures(user, ride);
+        const features = await this.extractFeatures(user, ride);
         const probability = this.calculateProbability(features);
 
         return {
@@ -287,7 +330,7 @@ class RideAcceptanceModel {
 }
 
 // Example usage and testing
-function demonstrateModel() {
+async function demonstrateModel() {
     // Sample CSV data (in a real implementation, you'd load from files)
     const historicalCsv = `Ride ID,Origin Latitude,Origin Longitude,Destination Latitude,Destination Longitude,Distance (miles),Time of Day (24hr),Day of Week
 R0001,40.83091,-77.15878,41.35899,-77.0563,9.15,12:00,Saturday`;
@@ -298,15 +341,16 @@ U001,40.81395,-76.34354,0.81`;
     const availableRidesCsv = `Ride ID,Origin Latitude,Origin Longitude,Destination Latitude,Destination Longitude,Distance (miles),Scheduled Time (24hr)
 A001,41.34901,-76.70262,40.61252,-77.15565,6.15,13:15`;
 
-    const model = new RideAcceptanceModel();
+    // Replace 'YOUR_API_KEY_HERE' with your actual Google Maps API key
+    const model = new RideAcceptanceModel('YOUR_API_KEY_HERE');
     model.loadData(historicalCsv, userCsv, availableRidesCsv);
     
     // Score rides for a user
-    const recommendations = model.getTopRecommendations('U001', 3);
+    const recommendations = await model.getTopRecommendations('U001', 3);
     console.log('Top recommendations:', recommendations);
     
     // Explain a specific prediction
-    const explanation = model.explainPrediction('U001', 'A001');
+    const explanation = await model.explainPrediction('U001', 'A001');
     console.log('Prediction explanation:', explanation);
 }
 

@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@googlemaps/google-maps-services-js": "^3.4.2",
     "googleapis": "^166.0.0"
   }
 }

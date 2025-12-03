@@ -42,8 +42,16 @@ async function main() {
 
     console.log('Data loaded successfully!\n');
 
-    // Initialize the model
-    const model = new RideAcceptanceModel();
+    // Initialize the model with Google Maps API key
+    // You can set the API key as an environment variable: export GOOGLE_MAPS_API_KEY="your_key_here"
+    const googleMapsApiKey = process.env.GOOGLE_MAPS_API_KEY;
+    if (!googleMapsApiKey) {
+        console.error('ERROR: GOOGLE_MAPS_API_KEY environment variable is not set.');
+        console.error('Set it with: export GOOGLE_MAPS_API_KEY="your_key_here"');
+        process.exit(1);
+    }
+    
+    const model = new RideAcceptanceModel(googleMapsApiKey);
     model.loadData(historicalData, userData, availableRides);
 
     console.log(`Model initialized with:
@@ -59,7 +67,7 @@ async function main() {
     const allPredictions = [];
     const userAnalysis = [];
 
-    model.userData.forEach(user => {
+    for (const user of model.userData) {
         const userId = user['User ID'];
         const historicalRate = parseFloat(user['Historical Ride Acceptance Rate']);
 
@@ -69,7 +77,7 @@ async function main() {
 
         try {
             // Get top 5 recommendations
-            const recommendations = model.getTopRecommendations(userId, 5);
+            const recommendations = await model.getTopRecommendations(userId, 5);
 
             if (recommendations.length > 0) {
                 console.log(`   \nTop ${recommendations.length} Ride Recommendations:`);
@@ -91,7 +99,7 @@ async function main() {
                 // Show detailed explanation for top recommendation
                 const topRide = recommendations[0];
                 console.log(`\n   Analysis of Top Recommendation (${topRide.rideId}):`);
-                const explanation = model.explainPrediction(userId, topRide.rideId);
+                const explanation = await model.explainPrediction(userId, topRide.rideId);
                 Object.values(explanation.explanation).forEach(exp => {
                     console.log(`      ${exp}`);
                 });
@@ -109,7 +117,7 @@ async function main() {
         } catch (error) {
             console.log(`   Error generating predictions: ${error.message}`);
         }
-    });
+    }
 
     // Overall statistics
     console.log('\n' + '='.repeat(80));
