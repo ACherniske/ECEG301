@@ -18,7 +18,7 @@ export default function OrgAdminPage() {
     email: '',
     firstName: '',
     lastName: '',
-    role: 'provider',
+    role: 'member',
   })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -132,7 +132,7 @@ export default function OrgAdminPage() {
       const newInvitation = await response.json()
       setInvitations([...invitations, newInvitation])
       setSuccess(`Invitation sent to ${inviteData.email}`)
-      setInviteData({ email: '', firstName: '', lastName: '', role: 'provider' })
+      setInviteData({ email: '', firstName: '', lastName: '', role: 'member' })
       setShowInviteForm(false)
 
       // Auto-refresh after invitation to catch any immediate acceptances
@@ -307,8 +307,7 @@ export default function OrgAdminPage() {
                   onChange={(e) => setInviteData({...inviteData, role: e.target.value})}
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="provider">Provider</option>
-                  <option value="staff">Staff</option>
+                  <option value="member">Member</option>
                   <option value="admin">Administrator</option>
                   <option value="dev">Developer</option>
                 </select>
