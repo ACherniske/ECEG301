@@ -8,6 +8,7 @@ import { driverService } from '../services/driverService'
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState(null)
+  const [statistics, setStatistics] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isEditing, setIsEditing] = useState(false)
@@ -17,8 +18,35 @@ export default function ProfilePage() {
   const { driver, logout, updateDriver } = useDriverStore()
 
   useEffect(() => {
-    fetchProfile()
+    fetchProfileAndStatistics()
   }, [])
+
+  const fetchProfileAndStatistics = async () => {
+    try {
+      setLoading(true)
+      
+      // Fetch profile and statistics in parallel
+      const [profileData, statisticsData] = await Promise.all([
+        driverService.getProfile(),
+        driverService.getStatistics()
+      ])
+      
+      setProfile(profileData)
+      setStatistics(statisticsData)
+      setEditForm({
+        firstName: profileData.firstName || '',
+        lastName: profileData.lastName || '',
+        address: profileData.address || '',
+        driverMake: profileData.driverMake || '',
+        driverModel: profileData.driverModel || '',
+        licensePlate: profileData.licensePlate || ''
+      })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchProfile = async () => {
     try {
@@ -230,14 +258,25 @@ export default function ProfilePage() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistics</h3>
           <div className="grid grid-cols-2 gap-6">
             <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600">47</div>
+              <div className="text-3xl font-bold text-blue-600">
+                {statistics?.totalRides ?? '--'}
+              </div>
               <div className="text-sm text-gray-500">Total Rides</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-green-600">100%</div>
+              <div className="text-3xl font-bold text-green-600">
+                {statistics?.completionRate !== undefined ? `${statistics.completionRate}%` : '--%'}
+              </div>
               <div className="text-sm text-gray-500">Completion</div>
             </div>
           </div>
+          {statistics && statistics.totalRides > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="text-sm text-gray-600 text-center">
+                {statistics.completedRides} of {statistics.totalRides} rides completed
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
