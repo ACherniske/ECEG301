@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import AvailableRidesPage from './pages/AvailableRidesPage'
 import MyRidesPage from './pages/MyRidesPage'
+import ActiveRidePage from './pages/ActiveRidePage'
 import RideHistoryPage from './pages/RideHistoryPage'
 import ProfilePage from './pages/ProfilePage'
 
@@ -41,6 +42,14 @@ function App() {
           element={
             <ProtectedRoute>
               <MyRidesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ride/:rideId"
+          element={
+            <ProtectedRoute>
+              <ActiveRidePage />
             </ProtectedRoute>
           }
         />
