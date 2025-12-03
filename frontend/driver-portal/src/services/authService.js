@@ -27,9 +27,7 @@ export const authService = {
         lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
-        address: formData.address,
-        driverMake: formData.driverMake,
-        driverModel: formData.driverModel
+        address: formData.address
       })
       
       return response.data
