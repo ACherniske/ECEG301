@@ -8,7 +8,7 @@ export const PROVIDER_ACCOUNTS_SHEET = process.env.PROVIDER_ACCOUNTS_SHEET || 'P
 export const ORGANIZATIONS_SHEET = process.env.ORGANIZATIONS_SHEET || 'Organizations'
 
 export const RANGES = {
-    RIDES: 'A:Q',
+    RIDES: 'A:U', // Updated to include new columns through U (21 columns total)
     PATIENTS: 'A:H',
     APPOINTMENTS: 'A:H',
     DRIVERS: 'A:K', // userId, email, firstName, lastName, status, createdAt, password, address, driverMake, driverModel, licensePlate

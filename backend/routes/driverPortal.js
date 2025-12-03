@@ -2,6 +2,7 @@ import express from 'express'
 import { getSheets } from '../config/googleSheets.js'
 import { SHEET_ID, DRIVER_ACCOUNTS_SHEET, RIDES_SHEET, RANGES } from '../constants/sheetConfig.js'
 import { authenticateToken } from '../middleware/auth.js'
+import { calculateRealDistance, calculateTotalRideDistance, getDistanceToDriver } from '../services/mapsService.js'
 
 const router = express.Router()
 
@@ -72,6 +73,8 @@ router.get('/profile', authenticateToken, requireDriverRole, async (req, res) =>
 // GET /api/driver/rides - Get available rides for the driver
 router.get('/rides', authenticateToken, requireDriverRole, async (req, res) => {
     try {
+        const driverId = req.user.id
+        
         const sheets = getSheets()
         const response = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
@@ -81,11 +84,30 @@ router.get('/rides', authenticateToken, requireDriverRole, async (req, res) => {
         const rows = response.data.values || []
         if (rows.length === 0) return res.json([])
 
+        // Get driver's address for distance calculations
+        const driverResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${DRIVER_ACCOUNTS_SHEET}!${RANGES.DRIVERS}`,
+        })
+        
+        const driverRows = driverResponse.data.values || []
+        let driverAddress = ''
+        
+        for (let i = 1; i < driverRows.length; i++) {
+            const driverRow = driverRows[i]
+            if (driverRow[0] === driverId) {
+                const safeDRow = [...driverRow]
+                while (safeDRow.length < 11) safeDRow.push('')
+                driverAddress = safeDRow[7] || '' // address
+                break
+            }
+        }
+
         // Filter rides that are available for claiming (status: 'confirmed')
         const availableRides = rows.slice(1)
             .map((row, index) => {
                 const safeRow = [...row]
-                while (safeRow.length < 17) safeRow.push('')
+                while (safeRow.length < 21) safeRow.push('') // Extended to 21 columns
                 
                 return {
                     rowIndex: index + 2,
@@ -105,10 +127,39 @@ router.get('/rides', authenticateToken, requireDriverRole, async (req, res) => {
                     driverId: safeRow[13], // driverId
                     driverName: safeRow[14], // driverName
                     driverPlate: safeRow[15], // driverPlate
-                    driverCar: safeRow[16] // driverCar
+                    driverCar: safeRow[16], // driverCar
+                    dayOfWeek: safeRow[17], // DOTW
+                    distanceToProvider: safeRow[18], // distance to provider
+                    distanceToDriver: safeRow[19], // distance to driver
+                    distanceTraveled: safeRow[20] // distance traveled
                 }
             })
             .filter(ride => ride.status === 'confirmed') // Only confirmed rides available for claiming
+
+        // Calculate distances for sorting if driver address is available
+        if (driverAddress) {
+            console.log(`Calculating distances for ${availableRides.length} available rides from driver address: ${driverAddress}`)
+            
+            for (const ride of availableRides) {
+                if (ride.pickupLocation) {
+                    try {
+                        const distance = await getDistanceToDriver(driverAddress, ride.pickupLocation)
+                        ride.calculatedDistanceToDriver = distance
+                        ride.distanceText = `${distance} mi`
+                    } catch (error) {
+                        console.error(`Error calculating distance for ride ${ride.rideId}:`, error)
+                        ride.calculatedDistanceToDriver = 999 // Put errored rides at the end
+                        ride.distanceText = 'Distance unavailable'
+                    }
+                } else {
+                    ride.calculatedDistanceToDriver = 999
+                    ride.distanceText = 'No pickup address'
+                }
+            }
+            
+            // Sort by distance (closest first)
+            availableRides.sort((a, b) => a.calculatedDistanceToDriver - b.calculatedDistanceToDriver)
+        }
 
         console.log(`Fetched ${availableRides.length} available rides for driver`)
         res.json(availableRides)
@@ -136,7 +187,7 @@ router.get('/rides/my', authenticateToken, requireDriverRole, async (req, res) =
         const myRides = rows.slice(1)
             .map((row, index) => {
                 const safeRow = [...row]
-                while (safeRow.length < 17) safeRow.push('')
+                while (safeRow.length < 21) safeRow.push('') // Extended to 21 columns
                 
                 return {
                     rowIndex: index + 2,
@@ -156,7 +207,11 @@ router.get('/rides/my', authenticateToken, requireDriverRole, async (req, res) =
                     driverId: safeRow[13], // driverId
                     driverName: safeRow[14], // driverName
                     driverPlate: safeRow[15], // driverPlate
-                    driverCar: safeRow[16] // driverCar
+                    driverCar: safeRow[16], // driverCar
+                    dayOfWeek: safeRow[17], // DOTW
+                    distanceToProvider: safeRow[18], // distance to provider
+                    distanceToDriver: safeRow[19], // distance to driver
+                    distanceTraveled: safeRow[20] // distance traveled
                 }
             })
             .filter(ride => ride.driverId === driverId)
@@ -197,7 +252,7 @@ router.post('/rides/:rideId/claim', authenticateToken, requireDriverRole, async 
             if (row[1] === rideId) { // Column 1: id (not column 0)
                 rideRowIndex = i + 1 // 1-based for sheets API
                 const safeRow = [...row]
-                while (safeRow.length < 17) safeRow.push('')
+                while (safeRow.length < 21) safeRow.push('') // Extended to 21 columns
                 
                 rideData = {
                     status: safeRow[10], // Column 10: status
@@ -219,14 +274,76 @@ router.post('/rides/:rideId/claim', authenticateToken, requireDriverRole, async 
             return res.status(400).json({ error: 'Ride is already claimed by another driver' })
         }
 
-        // Update the ride to claim it
+        // Update the ride to claim it and calculate distances
         const now = new Date().toISOString()
+        
+        // Get driver profile to get driver address for distance calculation
+        const driverResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${DRIVER_ACCOUNTS_SHEET}!${RANGES.DRIVERS}`,
+        })
+        
+        const driverRows = driverResponse.data.values || []
+        let driverAddress = ''
+        let driverName = ''
+        let driverPlate = ''
+        let driverCar = ''
+        
+        for (let i = 1; i < driverRows.length; i++) {
+            const driverRow = driverRows[i]
+            if (driverRow[0] === driverId) {
+                const safeDRow = [...driverRow]
+                while (safeDRow.length < 11) safeDRow.push('')
+                
+                driverAddress = safeDRow[7] || '' // address
+                driverName = `${safeDRow[2]} ${safeDRow[3]}` || '' // firstName lastName
+                driverPlate = safeDRow[10] || '' // licensePlate
+                driverCar = `${safeDRow[8]} ${safeDRow[9]}`.trim() || '' // driverMake driverModel
+                break
+            }
+        }
+        
+        // Get the ride data for calculations
+        const rideRow = rows[rideRowIndex - 1]
+        const safeRideRow = [...rideRow]
+        while (safeRideRow.length < 21) safeRideRow.push('')
+        
+        const pickupLocation = safeRideRow[12] || '' // pickupLocation
+        const providerLocation = safeRideRow[9] || '' // providerLocation
+        const isRoundTrip = safeRideRow[7] === 'true' || safeRideRow[7] === true
+        
+        // Calculate actual distances using Google Maps API
+        let distanceToDriver = '0 mi'
+        let distanceTraveled = '0 mi'
+        
+        try {
+            if (driverAddress && pickupLocation) {
+                console.log(`Calculating distance to driver: ${pickupLocation} → ${driverAddress}`)
+                const distanceResult = await calculateRealDistance(pickupLocation, driverAddress)
+                distanceToDriver = distanceResult.distance
+            }
+
+            if (driverAddress && pickupLocation && providerLocation) {
+                console.log(`Calculating total travel distance for ride: ${driverAddress} → ${pickupLocation} → ${providerLocation}${isRoundTrip ? ' → ' + pickupLocation : ''}`)
+                const totalDistanceResult = await calculateTotalRideDistance(driverAddress, pickupLocation, providerLocation, isRoundTrip)
+                distanceTraveled = totalDistanceResult.totalDistance
+                
+                console.log(`Calculated distances: To driver: ${distanceToDriver}, Total travel: ${distanceTraveled}`)
+            }
+        } catch (distanceError) {
+            console.error('Error calculating distances:', distanceError)
+            // Continue with fallback values
+            distanceToDriver = '0 mi'
+            distanceTraveled = '0 mi'
+        }
+
+        // Update the ride with claim information and calculated distances
         await sheets.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!K${rideRowIndex}:N${rideRowIndex}`, // status, notes, pickupLocation, driverId
+            range: `${RIDES_SHEET}!K${rideRowIndex}:U${rideRowIndex}`, // status through distance traveled
             valueInputOption: 'USER_ENTERED',
             resource: {
-                values: [['claimed', '', '', driverId]]
+                values: [['claimed', '', '', driverId, driverName, driverPlate, driverCar, '', '', distanceToDriver, distanceTraveled]]
             }
         })
 
@@ -275,7 +392,7 @@ router.get('/statistics', authenticateToken, requireDriverRole, async (req, res)
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i]
             const safeRow = [...row]
-            while (safeRow.length < 17) safeRow.push('')
+            while (safeRow.length < 21) safeRow.push('') // Extended to 21 columns
             if (safeRow[13]) { // driverId column
                 foundDriverIds.add(safeRow[13])
             }
@@ -285,7 +402,7 @@ router.get('/statistics', authenticateToken, requireDriverRole, async (req, res)
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i]
             const safeRow = [...row]
-            while (safeRow.length < 17) safeRow.push('')
+            while (safeRow.length < 21) safeRow.push('') // Extended to 21 columns
             
             // Check if this ride is assigned to the current driver
             // Based on actual sheet structure: driverId is in column 13, status is in column 10
