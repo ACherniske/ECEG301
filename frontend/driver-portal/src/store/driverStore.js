@@ -1,9 +1,10 @@
 import { create } from 'zustand'
+import { authService } from '../services/authService'
 
-export const useDriverStore = create((set) => ({
-  driver: null,
+export const useDriverStore = create((set, get) => ({
+  driver: authService.getCurrentDriver(),
   organizationId: null,
-  isAuthenticated: false,
+  isAuthenticated: authService.isAuthenticated(),
 
   setDriver: (driver) => set({ driver }),
   setOrganization: (organizationId) => set({ organizationId }),
@@ -14,11 +15,14 @@ export const useDriverStore = create((set) => ({
     isAuthenticated: true,
   }),
 
-  logout: () => set({
-    driver: null,
-    organizationId: null,
-    isAuthenticated: false,
-  }),
+  logout: async () => {
+    await authService.logout()
+    set({
+      driver: null,
+      organizationId: null,
+      isAuthenticated: false,
+    })
+  },
 
   updateDriver: (updates) => set((state) => ({
     driver: { ...state.driver, ...updates },
