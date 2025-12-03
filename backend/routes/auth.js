@@ -98,7 +98,7 @@ router.post('/driver/login', async (req, res) => {
       const row = rows[i]
       if (row[1] && row[1].toLowerCase() === email.toLowerCase()) {
         const safeRow = [...row]
-        while (safeRow.length < 10) safeRow.push('')
+        while (safeRow.length < 11) safeRow.push('')
         
         driverData = {
           userId: safeRow[0],
@@ -110,7 +110,8 @@ router.post('/driver/login', async (req, res) => {
           password: safeRow[6], // We'll verify this and not return it
           address: safeRow[7],
           driverMake: safeRow[8],
-          driverModel: safeRow[9]
+          driverModel: safeRow[9],
+          licensePlate: safeRow[10]
         }
         break
       }
@@ -151,6 +152,7 @@ router.post('/driver/login', async (req, res) => {
       address: driverData.address,
       driverMake: driverData.driverMake,
       driverModel: driverData.driverModel,
+      licensePlate: driverData.licensePlate,
       role: 'driver'
     }
 
@@ -175,9 +177,9 @@ router.post('/driver/login', async (req, res) => {
 // POST /api/auth/driver/register - Driver registration
 router.post('/driver/register', async (req, res) => {
   try {
-    const { firstName, lastName, email, password, address, driverMake, driverModel } = req.body
+    const { firstName, lastName, email, password, address } = req.body
 
-    if (!firstName || !lastName || !email || !password || !address || !driverMake || !driverModel) {
+    if (!firstName || !lastName || !email || !password || !address) {
       return res.status(400).json({ error: 'All fields are required' })
     }
 
@@ -226,14 +228,15 @@ router.post('/driver/register', async (req, res) => {
       now,              // F: createdAt
       hashedPassword,   // G: password
       address,          // H: address
-      driverMake,       // I: driverMake
-      driverModel       // J: driverModel
+      '',               // I: driverMake (empty for now)
+      '',               // J: driverModel (empty for now)
+      ''                // K: licensePlate (empty for now)
     ]
 
     // Add the new driver to the sheet
     await sheets.spreadsheets.values.append({
       spreadsheetId: SHEET_ID,
-      range: `${DRIVER_ACCOUNTS_SHEET}!A:J`,
+      range: `${DRIVER_ACCOUNTS_SHEET}!A:K`,
       valueInputOption: 'USER_ENTERED',
       resource: {
         values: [newRow]
