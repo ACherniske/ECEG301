@@ -11,7 +11,7 @@ export const RANGES = {
     RIDES: 'A:Q',
     PATIENTS: 'A:H',
     APPOINTMENTS: 'A:H',
-    DRIVERS: 'A:J',
+    DRIVERS: 'A:K', // userId, email, firstName, lastName, status, createdAt, password, address, driverMake, driverModel, licensePlate
     INVITATIONS: 'A:I',
     PROVIDER_ACCOUNTS: 'A:I',
     ORGANIZATIONS: 'A:F'
