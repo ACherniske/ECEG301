@@ -8,6 +8,10 @@ $Red = "Red"
 
 Write-Host "Starting AWS Backend Deployment..." -ForegroundColor $Green
 
+# Get script directory and navigate to project root
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $ScriptDir
+
 # Check if AWS CLI is installed
 try {
     aws --version | Out-Null
@@ -28,7 +32,13 @@ try {
 
 # Navigate to backend directory
 Write-Host "Navigating to backend directory..." -ForegroundColor $Yellow
-cd backend
+Set-Location backend
+
+# Install dependencies if needed
+if (-not (Test-Path "node_modules")) {
+    Write-Host "Installing backend dependencies..." -ForegroundColor $Yellow
+    npm install
+}
 
 # Check if already initialized
 if (Test-Path ".elasticbeanstalk") {
@@ -54,7 +64,7 @@ Write-Host "Setting environment variables..." -ForegroundColor $Yellow
 
 # Basic environment variables
 eb setenv NODE_ENV=production
-eb setenv FRONTEND_URL=https://acherniske.github.io
+eb setenv FRONTEND_URL=https://acherniske.github.io/ECEG301
 
 # Prompt for secrets
 Write-Host "Please enter your production secrets:" -ForegroundColor $Yellow
@@ -87,10 +97,19 @@ Write-Host "Deployment complete!" -ForegroundColor $Green
 Write-Host "Your API is now live! Use 'eb open' to view in browser" -ForegroundColor $Green
 
 # Instructions for frontend update
+Write-Host ""
 Write-Host "Next steps:" -ForegroundColor $Yellow
 Write-Host "1. Get your API URL with: eb status" -ForegroundColor $Yellow
-Write-Host "2. Update frontend/.env.production with your new API URL" -ForegroundColor $Yellow
-Write-Host "3. Redeploy frontend with: npm run deploy" -ForegroundColor $Yellow
-Write-Host "4. Test your full-stack application!" -ForegroundColor $Yellow
+Write-Host "2. Update frontend/provider-portal/.env.production with your new API URL" -ForegroundColor $Yellow
+Write-Host "3. Update frontend/driver-portal/.env.production with your new API URL" -ForegroundColor $Yellow
+Write-Host "4. Redeploy frontends with: .\deploy-all-portals.ps1" -ForegroundColor $Yellow
+Write-Host "5. Test your full-stack application!" -ForegroundColor $Yellow
+Write-Host ""
+Write-Host "Frontend URLs:" -ForegroundColor $Green
+Write-Host "   Provider Portal: https://acherniske.github.io/ECEG301/provider/" -ForegroundColor $Green
+Write-Host "   Driver Portal: https://acherniske.github.io/ECEG301/driver/" -ForegroundColor $Green
+
+# Return to script directory
+Set-Location $ScriptDir
 
 Write-Host "Deployment script finished!" -ForegroundColor $Green
