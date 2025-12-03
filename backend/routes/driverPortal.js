@@ -3,6 +3,7 @@ import { getSheets } from '../config/googleSheets.js'
 import { SHEET_ID, DRIVER_ACCOUNTS_SHEET, RIDES_SHEET, RANGES } from '../constants/sheetConfig.js'
 import { authenticateToken } from '../middleware/auth.js'
 import { calculateRealDistance, calculateTotalRideDistance, getDistanceToDriver } from '../services/mapsService.js'
+import { processRidesForDriver, getAcceptanceConfig } from '../services/rideAcceptanceService.js'
 
 const router = express.Router()
 
@@ -70,7 +71,7 @@ router.get('/profile', authenticateToken, requireDriverRole, async (req, res) =>
     }
 })
 
-// GET /api/driver/rides - Get available rides for the driver
+// GET /api/driver/rides - Get available rides for the driver with acceptance scoring
 router.get('/rides', authenticateToken, requireDriverRole, async (req, res) => {
     try {
         const driverId = req.user.id
@@ -84,23 +85,37 @@ router.get('/rides', authenticateToken, requireDriverRole, async (req, res) => {
         const rows = response.data.values || []
         if (rows.length === 0) return res.json([])
 
-        // Get driver's address for distance calculations
+        // Get driver's profile for acceptance scoring
         const driverResponse = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
             range: `${DRIVER_ACCOUNTS_SHEET}!${RANGES.DRIVERS}`,
         })
         
         const driverRows = driverResponse.data.values || []
-        let driverAddress = ''
+        let driverProfile = null
         
         for (let i = 1; i < driverRows.length; i++) {
             const driverRow = driverRows[i]
             if (driverRow[0] === driverId) {
                 const safeDRow = [...driverRow]
                 while (safeDRow.length < 11) safeDRow.push('')
-                driverAddress = safeDRow[7] || '' // address
+                
+                driverProfile = {
+                    userId: safeDRow[0],
+                    email: safeDRow[1],
+                    firstName: safeDRow[2],
+                    lastName: safeDRow[3],
+                    address: safeDRow[7] || '',
+                    driverMake: safeDRow[8] || '',
+                    driverModel: safeDRow[9] || '',
+                    licensePlate: safeDRow[10] || ''
+                }
                 break
             }
+        }
+
+        if (!driverProfile) {
+            return res.status(404).json({ error: 'Driver profile not found' })
         }
 
         // Filter rides that are available for claiming (status: 'confirmed')
@@ -111,7 +126,8 @@ router.get('/rides', authenticateToken, requireDriverRole, async (req, res) => {
                 
                 return {
                     rowIndex: index + 2,
-                    rideId: safeRow[1], // id
+                    id: safeRow[1], // id for frontend compatibility
+                    rideId: safeRow[1], // id (duplicate for backend compatibility)
                     orgId: safeRow[0], // orgId
                     patientName: safeRow[2], // patientName
                     patientId: safeRow[3], // patientId
@@ -136,35 +152,31 @@ router.get('/rides', authenticateToken, requireDriverRole, async (req, res) => {
             })
             .filter(ride => ride.status === 'confirmed') // Only confirmed rides available for claiming
 
-        // Calculate distances for sorting if driver address is available
-        if (driverAddress) {
-            console.log(`Calculating distances for ${availableRides.length} available rides from driver address: ${driverAddress}`)
-            
-            for (const ride of availableRides) {
-                if (ride.pickupLocation) {
-                    try {
-                        const distance = await getDistanceToDriver(driverAddress, ride.pickupLocation)
-                        ride.calculatedDistanceToDriver = distance
-                        ride.distanceText = `${distance} mi`
-                    } catch (error) {
-                        console.error(`Error calculating distance for ride ${ride.rideId}:`, error)
-                        ride.calculatedDistanceToDriver = 999 // Put errored rides at the end
-                        ride.distanceText = 'Distance unavailable'
-                    }
-                } else {
-                    ride.calculatedDistanceToDriver = 999
-                    ride.distanceText = 'No pickup address'
-                }
-            }
-            
-            // Sort by distance (closest first)
-            availableRides.sort((a, b) => a.calculatedDistanceToDriver - b.calculatedDistanceToDriver)
+        if (availableRides.length === 0) {
+            console.log('No available rides found for driver')
+            return res.json([])
         }
 
-        console.log(`Fetched ${availableRides.length} available rides for driver`)
-        res.json(availableRides)
+        // Apply ride acceptance scoring and sorting
+        console.log(`🔄 Applying ride acceptance scoring for driver ${driverId}...`)
+        const acceptanceConfig = getAcceptanceConfig()
+        const processedResult = await processRidesForDriver(availableRides, driverProfile, acceptanceConfig)
+
+        console.log(`✅ Processed ${processedResult.rides.length} rides with acceptance scoring`)
+        console.log(`   📊 Summary: ${processedResult.summary.eligibleCount}/${processedResult.summary.totalCount} eligible, avg score: ${processedResult.summary.averageScore.toFixed(1)}`)
+
+        res.json({
+            rides: processedResult.rides,
+            summary: processedResult.summary,
+            driver: {
+                id: driverProfile.userId,
+                name: `${driverProfile.firstName} ${driverProfile.lastName}`,
+                address: driverProfile.address
+            },
+            config: acceptanceConfig
+        })
     } catch (error) {
-        console.error('Error fetching available rides:', error)
+        console.error('Error fetching available rides with acceptance scoring:', error)
         res.status(500).json({ error: error.message })
     }
 })
@@ -191,7 +203,8 @@ router.get('/rides/my', authenticateToken, requireDriverRole, async (req, res) =
                 
                 return {
                     rowIndex: index + 2,
-                    rideId: safeRow[1], // id
+                    id: safeRow[1], // id for frontend compatibility
+                    rideId: safeRow[1], // id (duplicate for backend compatibility)
                     orgId: safeRow[0], // orgId
                     patientName: safeRow[2], // patientName
                     patientId: safeRow[3], // patientId
@@ -577,6 +590,133 @@ router.put('/rides/:rideId/status', authenticateToken, requireDriverRole, async 
         })
     } catch (error) {
         console.error('Error updating ride status:', error)
+        res.status(500).json({ error: error.message })
+    }
+})
+
+// PATCH /api/driver/rides/:rideId/accept - Accept a ride (simplified version of claim)
+router.patch('/rides/:rideId/accept', authenticateToken, requireDriverRole, async (req, res) => {
+    try {
+        const { rideId } = req.params
+        const driverId = req.user.id
+        
+        const sheets = getSheets()
+        
+        // First, get the current ride data
+        const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${RIDES_SHEET}!${RANGES.RIDES}`,
+        })
+
+        const rows = response.data.values || []
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Ride not found' })
+        }
+
+        // Find the ride and check if it's available
+        let rideRowIndex = -1
+        let rideData = null
+        
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i]
+            if (row[1] === rideId) { // Column 1: id
+                rideRowIndex = i + 1 // 1-based for sheets API
+                const safeRow = [...row]
+                while (safeRow.length < 21) safeRow.push('')
+                
+                rideData = {
+                    status: safeRow[10], // Column 10: status
+                    driverId: safeRow[13], // Column 13: driverId
+                    pickupLocation: safeRow[12], // Column 12: pickup location
+                    notes: safeRow[11], // Column 11: notes
+                    dayOfWeek: safeRow[17], // Column 17: dayOfWeek (preserve existing)
+                    distanceToProvider: safeRow[18] // Column 18: distanceToProvider (preserve existing)
+                }
+                break
+            }
+        }
+
+        if (!rideData) {
+            return res.status(404).json({ error: 'Ride not found' })
+        }
+
+        if (rideData.status !== 'confirmed') {
+            return res.status(400).json({ error: 'Ride is not available for acceptance' })
+        }
+
+        if (rideData.driverId && rideData.driverId.trim() !== '') {
+            return res.status(400).json({ error: 'Ride is already accepted by another driver' })
+        }
+
+        // Get driver profile for driver info
+        const driverResponse = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: `${DRIVER_ACCOUNTS_SHEET}!${RANGES.DRIVERS}`,
+        })
+        
+        const driverRows = driverResponse.data.values || []
+        let driverName = ''
+        let driverPlate = ''
+        let driverCar = ''
+        let driverAddress = ''
+
+        // Find driver info
+        for (let i = 1; i < driverRows.length; i++) {
+            const driverRow = driverRows[i]
+            if (driverRow[0] === driverId) { // Column 0: userId
+                driverName = `${driverRow[1] || ''} ${driverRow[2] || ''}`.trim() // firstName lastName
+                driverPlate = driverRow[10] || '' // Column 10: licensePlate
+                driverCar = `${driverRow[8] || ''} ${driverRow[9] || ''}`.trim() // carMake carModel
+                driverAddress = driverRow[7] || '' // Column 7: address
+                break
+            }
+        }
+
+        // Calculate distance to driver if we have addresses
+        let distanceToDriver = ''
+        if (driverAddress && rideData.pickupLocation) {
+            try {
+                const { calculateRealDistance } = await import('../services/mapsService.js')
+                const distanceResult = await calculateRealDistance(driverAddress, rideData.pickupLocation)
+                if (distanceResult && distanceResult.distance !== null) {
+                    distanceToDriver = distanceResult.distance.toString()
+                }
+            } catch (distanceError) {
+                console.warn('Could not calculate distance to driver:', distanceError.message)
+            }
+        }
+
+        // Update the ride with driver information and change status to claimed
+        await sheets.spreadsheets.values.update({
+            spreadsheetId: SHEET_ID,
+            range: `${RIDES_SHEET}!K${rideRowIndex}:T${rideRowIndex}`, // Status through distanceToDriver
+            valueInputOption: 'RAW',
+            requestBody: {
+                values: [[
+                    'claimed',                    // Column K (10): status
+                    rideData.notes || '',        // Column L (11): notes (preserve existing)
+                    rideData.pickupLocation || '', // Column M (12): pickupLocation (preserve existing) 
+                    driverId,                     // Column N (13): driverId
+                    driverName,                   // Column O (14): driverName  
+                    driverPlate,                  // Column P (15): driverPlate
+                    driverCar,                    // Column Q (16): driverCar
+                    rideData.dayOfWeek || '',     // Column R (17): dayOfWeek (preserve existing)
+                    rideData.distanceToProvider || '', // Column S (18): distanceToProvider (preserve existing)
+                    distanceToDriver              // Column T (19): distanceToDriver
+                ]]
+            }
+        })
+
+        console.log(`Driver ${driverId} (${driverName}) accepted ride ${rideId}`)
+        res.json({ 
+            success: true, 
+            message: 'Ride accepted successfully',
+            rideId,
+            driverName,
+            distanceToDriver
+        })
+    } catch (error) {
+        console.error('Error accepting ride:', error)
         res.status(500).json({ error: error.message })
     }
 })
