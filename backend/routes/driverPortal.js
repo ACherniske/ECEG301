@@ -536,7 +536,7 @@ router.put('/profile', authenticateToken, requireDriverRole, async (req, res) =>
 router.put('/rides/:rideId/status', authenticateToken, requireDriverRole, async (req, res) => {
     try {
         const { rideId } = req.params
-        const { status } = req.body
+        const { status, cancellationReason } = req.body
         const driverId = req.user.id
 
         if (!status) {
@@ -546,6 +546,11 @@ router.put('/rides/:rideId/status', authenticateToken, requireDriverRole, async 
         const validStatuses = ['claimed', 'en route', 'in transit', 'arrived', 'completed', 'cancelled']
         if (!validStatuses.includes(status)) {
             return res.status(400).json({ error: 'Invalid status' })
+        }
+
+        // Validate cancellation reason if status is cancelled
+        if (status === 'cancelled' && !cancellationReason) {
+            return res.status(400).json({ error: 'Cancellation reason is required when cancelling a ride' })
         }
         
         const sheets = getSheets()
@@ -571,22 +576,47 @@ router.put('/rides/:rideId/status', authenticateToken, requireDriverRole, async 
             return res.status(404).json({ error: 'Ride not found or not assigned to this driver' })
         }
 
-        // Update the ride status (Column K = 11th column in spreadsheet)
-        await sheets.spreadsheets.values.update({
+        // Prepare update values
+        const updates = []
+        
+        // Update status (Column K)
+        updates.push({
+            range: `${RIDES_SHEET}!K${rideRowIndex}`,
+            values: [[status]]
+        })
+
+        // If cancelled, update notes with cancellation reason (Column L)
+        if (status === 'cancelled' && cancellationReason) {
+            // Get current notes and append cancellation reason
+            const currentRow = rows[rideRowIndex - 1]
+            const currentNotes = currentRow[11] || '' // Column L (11): notes
+            const updatedNotes = currentNotes 
+                ? `${currentNotes}\n\n[CANCELLED] ${cancellationReason}` 
+                : `[CANCELLED] ${cancellationReason}`
+            
+            updates.push({
+                range: `${RIDES_SHEET}!L${rideRowIndex}`,
+                values: [[updatedNotes]]
+            })
+        }
+
+        // Batch update
+        await sheets.spreadsheets.values.batchUpdate({
             spreadsheetId: SHEET_ID,
-            range: `${RIDES_SHEET}!K${rideRowIndex}`, // status column only
-            valueInputOption: 'USER_ENTERED',
-            resource: {
-                values: [[status]]
+            requestBody: {
+                valueInputOption: 'USER_ENTERED',
+                data: updates
             }
         })
 
-        console.log(`Driver ${driverId} updated ride ${rideId} status to ${status}`)
+        console.log(`Driver ${driverId} updated ride ${rideId} status to ${status}${status === 'cancelled' ? ` with reason: ${cancellationReason}` : ''}`)
+        
         res.json({ 
             success: true, 
-            message: 'Ride status updated successfully',
+            message: `Ride status updated to ${status} successfully`,
             rideId,
-            status
+            status,
+            ...(status === 'cancelled' && { cancellationReason })
         })
     } catch (error) {
         console.error('Error updating ride status:', error)
