@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/ECEG301/driver/sw.js', { scope: '/ECEG301/driver/' })})}
