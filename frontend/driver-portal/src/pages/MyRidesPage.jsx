@@ -105,7 +105,7 @@ export default function MyRidesPage() {
             <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
             <p className="text-gray-600">Loading your rides...</p>
           </div>
-        ) : myRides.length === 0 ? (
+        ) : totalActiveRides === 0 ? (
           <div className="text-center py-12">
             <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
               <AlertCircle size={48} className="text-gray-400" />

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { MapPin, Navigation, CheckCircle, AlertCircle, ChevronLeft, X, Clock, ArrowRight, Car, Home } from 'lucide-react'
+import { MapPin, Navigation, CheckCircle, AlertCircle, ChevronLeft, X, Clock, ArrowRight, Car, Home, Calendar } from 'lucide-react'
 import { useRideStore } from '../store/rideStore'
 import { useDriverStore } from '../store/driverStore'
 import { rideService } from '../services/rideService'
-import { Button } from '../components/shared/Button'
+import { Button } from '../components/shared/button'
 
 export default function ActiveRidePage() {
   const { rideId } = useParams()
@@ -224,7 +224,7 @@ export default function ActiveRidePage() {
       setActiveRide(updatedRide)
       
       // Show success feedback
-      console.log(`✅ Stage updated to: ${nextStage.title} (Stage ${nextStageIndex + 1}/${rideStages.length})`)
+      console.log(`Stage updated to: ${nextStage.title} (Stage ${nextStageIndex + 1}/${rideStages.length})`)
       
     } catch (error) {
       console.error('Failed to update ride status:', error)
@@ -402,7 +402,9 @@ export default function ActiveRidePage() {
                 <p className="text-sm text-gray-900 font-medium mb-1">
                   {activeRide.pickupLocation || activeRide.patientAddress}
                 </p>
-                <p className="text-sm text-blue-600 font-bold">🕐 {activeRide.pickupTime}</p>
+                <p className="text-sm text-blue-600 font-bold flex items-center gap-1">
+                  <Clock size={14} /> {activeRide.pickupTime}
+                </p>
               </div>
             </div>
 
@@ -417,8 +419,8 @@ export default function ActiveRidePage() {
                 <p className="text-sm text-gray-900 font-medium mb-1">
                   {activeRide.providerLocation || activeRide.appointmentLocation || activeRide.location}
                 </p>
-                <p className="text-sm text-gray-600">
-                  📅 {activeRide.appointmentDate} at {activeRide.appointmentTime}
+                <p className="text-sm text-gray-600 flex items-center gap-1">
+                  <Calendar size={14} /> {activeRide.appointmentDate} at {activeRide.appointmentTime}
                 </p>
               </div>
             </div>

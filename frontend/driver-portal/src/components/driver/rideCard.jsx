@@ -1,4 +1,4 @@
-import { MapPin, Calendar, Clock, CheckCircle, AlertCircle, ChevronRight, Star, TrendingUp } from 'lucide-react'
+import { MapPin, Calendar, Clock, CheckCircle, AlertCircle, ChevronRight, Star, TrendingUp, ThumbsUp, AlertTriangle } from 'lucide-react'
 import { Card } from '../shared/Card'
 
 export const EnhancedRideCard = ({ ride, onAccept, onView }) => {
@@ -30,10 +30,10 @@ export const EnhancedRideCard = ({ ride, onAccept, onView }) => {
   }
 
   const getScoreBadge = (score) => {
-    if (score >= 80) return '⭐ Excellent Match'
-    if (score >= 60) return '👍 Good Match'
-    if (score >= 40) return '👌 Fair Match'
-    return '⚠️ Poor Match'
+    if (score >= 80) return { icon: Star, text: 'Excellent Match', color: 'text-yellow-600' }
+    if (score >= 60) return { icon: ThumbsUp, text: 'Good Match', color: 'text-green-600' }
+    if (score >= 40) return { icon: ThumbsUp, text: 'Fair Match', color: 'text-blue-600' }
+    return { icon: AlertTriangle, text: 'Poor Match', color: 'text-red-600' }
   }
 
   return (
@@ -54,8 +54,17 @@ export const EnhancedRideCard = ({ ride, onAccept, onView }) => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className={`px-3 py-1 rounded-full text-xs font-semibold border ${getScoreColor(score)}`}>
-            {getScoreBadge(score)}
+          <div className={`px-3 py-1 rounded-full text-xs font-semibold border ${getScoreColor(score)} flex items-center gap-1`}>
+            {(() => {
+              const badge = getScoreBadge(score)
+              const Icon = badge.icon
+              return (
+                <>
+                  <Icon size={12} className={badge.color} />
+                  {badge.text}
+                </>
+              )
+            })()}
           </div>
           <div className="text-right">
             <div className="text-lg font-bold text-gray-900">{score.toFixed(0)}%</div>
