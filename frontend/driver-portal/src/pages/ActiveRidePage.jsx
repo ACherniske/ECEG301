@@ -150,40 +150,40 @@ export default function ActiveRidePage() {
     
     // Handle navigation based on stage ID for round trips
     switch (stage.id) {
-      case 'en route':
+      case 'go_to_pickup':
         // Navigate from driver location to pickup
         return {
           origin,
           destination: encodeURIComponent(activeRide.pickupLocation || activeRide.patientAddress)
         }
-      case 'pickup':
+      case 'patient_picked_up':
         // Navigate from pickup to appointment
         return {
           origin: encodeURIComponent(activeRide.pickupLocation || activeRide.patientAddress),
-          destination: encodeURIComponent(activeRide.appointmentLocation || activeRide.location)
+          destination: encodeURIComponent(activeRide.providerLocation || activeRide.appointmentLocation || activeRide.location)
         }
-      case 'arrived':
+      case 'arrived_at_appointment':
         // Stay at appointment location
         return {
-          origin: encodeURIComponent(activeRide.appointmentLocation || activeRide.location),
-          destination: encodeURIComponent(activeRide.appointmentLocation || activeRide.location)
+          origin: encodeURIComponent(activeRide.providerLocation || activeRide.appointmentLocation || activeRide.location),
+          destination: encodeURIComponent(activeRide.providerLocation || activeRide.appointmentLocation || activeRide.location)
         }
-      case 'return_pickup':
+      case 'go_to_return_pickup':
         // Navigate from appointment back to pickup patient location
         return {
-          origin: encodeURIComponent(activeRide.appointmentLocation || activeRide.location),
+          origin: encodeURIComponent(activeRide.providerLocation || activeRide.appointmentLocation || activeRide.location),
           destination: encodeURIComponent(activeRide.pickupLocation || activeRide.patientAddress)
         }
-      case 'return_transit':
-        // Navigate from pickup location back to patient's home (same as pickup location)
+      case 'return_journey':
+        // Navigate from provider location back to pickup location to get patient
         return {
-          origin: encodeURIComponent(activeRide.pickupLocation || activeRide.patientAddress),
+          origin: encodeURIComponent(activeRide.providerLocation || activeRide.appointmentLocation || activeRide.location),
           destination: encodeURIComponent(activeRide.pickupLocation || activeRide.patientAddress)
         }
       default:
         return {
           origin,
-          destination: encodeURIComponent(activeRide.appointmentLocation || activeRide.location)
+          destination: encodeURIComponent(activeRide.providerLocation || activeRide.appointmentLocation || activeRide.location)
         }
     }
   }
@@ -415,7 +415,7 @@ export default function ActiveRidePage() {
               <div className="flex-1">
                 <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">DESTINATION</p>
                 <p className="text-sm text-gray-900 font-medium mb-1">
-                  {activeRide.appointmentLocation || activeRide.location}
+                  {activeRide.providerLocation || activeRide.appointmentLocation || activeRide.location}
                 </p>
                 <p className="text-sm text-gray-600">
                   📅 {activeRide.appointmentDate} at {activeRide.appointmentTime}
@@ -463,13 +463,16 @@ export default function ActiveRidePage() {
           {/* Navigation Button */}
           <Button
             onClick={handleNavigate}
-            variant="primary"
+            variant={currentStage?.id === 'arrived_at_appointment' ? 'secondary' : 'primary'}
             size="lg"
             fullWidth
             icon={Navigation}
+            disabled={currentStage?.id === 'arrived_at_appointment'}
           >
-            Navigate to {currentStage?.title.includes('Pickup') ? 'Pickup' : 
-                        currentStage?.title.includes('Return') ? 'Return Location' : 'Destination'}
+            {currentStage?.id === 'arrived_at_appointment' ? 
+              'Arrived at Destination' :
+              `Navigate to ${currentStage?.title.includes('Pickup') ? 'Pickup' : 
+                          currentStage?.title.includes('Return') ? 'Return Location' : 'Destination'}`}
           </Button>
 
           {/* Next Stage Button */}

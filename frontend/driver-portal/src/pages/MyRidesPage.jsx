@@ -77,6 +77,7 @@ export default function MyRidesPage() {
   // Separate confirmed and in-progress rides
   const confirmedRides = myRides.filter(r => r.status === 'claimed')
   const inProgressRides = myRides.filter(r => ['en route', 'in transit', 'arrived'].includes(r.status))
+  const totalActiveRides = confirmedRides.length + inProgressRides.length
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -93,7 +94,7 @@ export default function MyRidesPage() {
           </button>
         </div>
         <p className="text-blue-100">
-          {myRides.length} active ride{myRides.length !== 1 ? 's' : ''}
+          {totalActiveRides} active ride{totalActiveRides !== 1 ? 's' : ''}
         </p>
       </div>
 
