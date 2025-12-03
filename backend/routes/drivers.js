@@ -17,21 +17,24 @@ const getDriverById = async (driverId) => {
         const rows = response.data.values || []
         if (rows.length === 0) return null
 
-        // Find driver by ID (column B)
+        // Find driver by userId (column A)
         for (let i = 1; i < rows.length; i++) {
             const row = rows[i]
-            if (row[1] === driverId) {
+            if (row[0] === driverId) {
                 const safeRow = [...row]
-                while (safeRow.length < 7) safeRow.push('')
+                while (safeRow.length < 10) safeRow.push('')
                 
                 return {
-                    orgId: safeRow[0],
-                    id: safeRow[1],
-                    name: safeRow[2],
-                    carMake: safeRow[3],
-                    carModel: safeRow[4],
-                    licensePlate: safeRow[5],
-                    status: safeRow[6] || 'active'
+                    userId: safeRow[0],
+                    email: safeRow[1],
+                    firstName: safeRow[2],
+                    lastName: safeRow[3],
+                    status: safeRow[4] || 'active',
+                    createdAt: safeRow[5],
+                    // Don't return password for security
+                    address: safeRow[7],
+                    driverMake: safeRow[8],
+                    driverModel: safeRow[9]
                 }
             }
         }
@@ -57,23 +60,27 @@ router.get('/:orgId/drivers', authenticateToken, async (req, res) => {
         if (rows.length === 0) return res.json([])
 
         const drivers = rows.slice(1)
-            .filter(row => row[0] === orgId)
             .map((row, index) => {
                 const safeRow = [...row]
-                while (safeRow.length < 7) safeRow.push('')
+                while (safeRow.length < 10) safeRow.push('')
                 
                 return {
                     rowIndex: index + 2, // Add 2 because of header and 0-based indexing
-                    id: safeRow[1],
-                    name: safeRow[2],
-                    carMake: safeRow[3],
-                    carModel: safeRow[4],
-                    licensePlate: safeRow[5],
-                    status: safeRow[6] || 'active'
+                    userId: safeRow[0],
+                    email: safeRow[1],
+                    firstName: safeRow[2],
+                    lastName: safeRow[3],
+                    status: safeRow[4] || 'active',
+                    createdAt: safeRow[5],
+                    // Don't return password for security
+                    address: safeRow[7],
+                    driverMake: safeRow[8],
+                    driverModel: safeRow[9]
                 }
             })
+            .filter(driver => driver.status === 'active') // Only return active drivers
 
-        console.log(`Fetched ${drivers.length} drivers for org ${orgId}`)
+        console.log(`Fetched ${drivers.length} drivers`)
         res.json(drivers)
     } catch (error) {
         console.error('Error fetching drivers:', error)
@@ -84,16 +91,12 @@ router.get('/:orgId/drivers', authenticateToken, async (req, res) => {
 // GET /api/org/:orgId/drivers/:driverId - Get specific driver details
 router.get('/:orgId/drivers/:driverId', authenticateToken, async (req, res) => {
     try {
-        const { orgId, driverId } = req.params
+        const { driverId } = req.params
         
         const driver = await getDriverById(driverId)
         
         if (!driver) {
             return res.status(404).json({ error: 'Driver not found' })
-        }
-        
-        if (driver.orgId !== orgId) {
-            return res.status(403).json({ error: 'Access denied to this driver' })
         }
         
         res.json(driver)
