@@ -21,7 +21,9 @@ export async function calculateRideAcceptanceScore(ride, driver, options = {}) {
         maxDistance = 50, // Max distance in miles to consider
         distanceWeight = 1.0, // Weight for distance factor (0-1)
         timeWeight = 0.3, // Weight for time factor (0-1)
-        urgencyWeight = 0.2 // Weight for urgency factor (0-1)
+        urgencyWeight = 0.2, // Weight for urgency factor (0-1)
+        timeOfDayWeight = 0.25, // Weight for time of day preferences (0-1)
+        dayOfWeekWeight = 0.15 // Weight for day of week preferences (0-1)
     } = options
 
     let score = 0
@@ -42,6 +44,16 @@ export async function calculateRideAcceptanceScore(ride, driver, options = {}) {
         const urgencyScore = calculateUrgencyFactor(ride)
         factors.urgency = urgencyScore
         score += urgencyScore.score * urgencyWeight
+
+        // Factor 4: Time of day preference (based on driver's historical patterns)
+        const timeOfDayScore = calculateTimeOfDayFactor(ride, driver)
+        factors.timeOfDay = timeOfDayScore
+        score += timeOfDayScore.score * timeOfDayWeight
+
+        // Factor 5: Day of week preference (based on driver's historical patterns)
+        const dayOfWeekScore = calculateDayOfWeekFactor(ride, driver)
+        factors.dayOfWeek = dayOfWeekScore
+        score += dayOfWeekScore.score * dayOfWeekWeight
 
         // Normalize final score to 0-100 range
         const finalScore = Math.min(Math.max(score * 100, 0), 100)
@@ -71,6 +83,259 @@ export async function calculateRideAcceptanceScore(ride, driver, options = {}) {
                 reason: 'Unable to calculate acceptance score'
             }
         }
+    }
+}
+
+/**
+ * Calculate time of day preference factor (0-1)
+ * Based on driver's historical acceptance patterns for different times of day
+ */
+function calculateTimeOfDayFactor(ride, driver) {
+    try {
+        if (!ride.appointmentTime) {
+            return {
+                score: 0.5,
+                timeSlot: 'unknown',
+                reason: 'No appointment time available'
+            }
+        }
+
+        // Parse appointment time (assuming format like "14:30" or "2:30 PM")
+        let hour
+        if (ride.appointmentTime.includes(':')) {
+            const timeParts = ride.appointmentTime.split(':')
+            hour = parseInt(timeParts[0])
+            
+            // Handle AM/PM format
+            if (ride.appointmentTime.toLowerCase().includes('pm') && hour !== 12) {
+                hour += 12
+            } else if (ride.appointmentTime.toLowerCase().includes('am') && hour === 12) {
+                hour = 0
+            }
+        } else {
+            return {
+                score: 0.5,
+                timeSlot: 'unknown',
+                reason: 'Invalid time format'
+            }
+        }
+
+        // Define time slots and their general preference scores
+        let timeSlot, baseScore
+        
+        if (hour >= 6 && hour < 9) {
+            timeSlot = 'early_morning'
+            baseScore = 0.7 // Many drivers prefer early morning rides
+        } else if (hour >= 9 && hour < 12) {
+            timeSlot = 'morning'
+            baseScore = 0.9 // Peak preference time
+        } else if (hour >= 12 && hour < 15) {
+            timeSlot = 'afternoon'
+            baseScore = 0.8 // Good time for most drivers
+        } else if (hour >= 15 && hour < 18) {
+            timeSlot = 'late_afternoon'
+            baseScore = 0.7 // Moderate preference
+        } else if (hour >= 18 && hour < 21) {
+            timeSlot = 'evening'
+            baseScore = 0.6 // Lower preference for evening
+        } else {
+            timeSlot = 'night'
+            baseScore = 0.3 // Least preferred time
+        }
+
+        // Apply driver-specific adjustments based on historical data if available
+        const driverPreferences = getDriverTimePreferences(driver, timeSlot)
+        const adjustedScore = Math.min(1.0, baseScore + driverPreferences.adjustment)
+
+        return {
+            score: adjustedScore,
+            timeSlot,
+            hour,
+            baseScore,
+            driverAdjustment: driverPreferences.adjustment,
+            acceptanceRate: driverPreferences.acceptanceRate,
+            reason: `${timeSlot.replace('_', ' ')} slot (${hour}:00) - ${Math.round(adjustedScore * 100)}% preference`
+        }
+
+    } catch (error) {
+        console.error('Error calculating time of day factor:', error)
+        return {
+            score: 0.5,
+            timeSlot: 'unknown',
+            reason: 'Time preference calculation failed'
+        }
+    }
+}
+
+/**
+ * Calculate day of week preference factor (0-1)
+ * Based on driver's historical acceptance patterns for different days
+ */
+function calculateDayOfWeekFactor(ride, driver) {
+    try {
+        if (!ride.appointmentDate) {
+            return {
+                score: 0.5,
+                dayOfWeek: 'unknown',
+                reason: 'No appointment date available'
+            }
+        }
+
+        const appointmentDate = new Date(ride.appointmentDate)
+        const dayOfWeek = appointmentDate.getDay() // 0 = Sunday, 1 = Monday, etc.
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        const dayName = dayNames[dayOfWeek]
+
+        // Define base preferences for different days
+        let baseScore
+        const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+
+        if (isWeekday) {
+            // Weekdays generally have higher demand and driver availability
+            if (dayOfWeek >= 2 && dayOfWeek <= 4) { // Tuesday-Thursday
+                baseScore = 0.9 // Peak weekdays
+            } else { // Monday, Friday
+                baseScore = 0.8 // Good but slightly lower
+            }
+        } else {
+            // Weekend preferences
+            if (dayOfWeek === 6) { // Saturday
+                baseScore = 0.6 // Some drivers work weekends
+            } else { // Sunday
+                baseScore = 0.4 // Lowest preference day
+            }
+        }
+
+        // Apply driver-specific adjustments based on historical data
+        const driverPreferences = getDriverDayPreferences(driver, dayOfWeek, dayName)
+        const adjustedScore = Math.min(1.0, baseScore + driverPreferences.adjustment)
+
+        // Consider advance notice for weekend rides
+        const now = new Date()
+        const hoursUntilRide = (appointmentDate - now) / (1000 * 60 * 60)
+        
+        if (isWeekend && hoursUntilRide > 48) {
+            // Bonus for weekend rides with good advance notice
+            const advanceBonus = Math.min(0.2, (hoursUntilRide - 48) / 168 * 0.2) // Up to 0.2 bonus for a week's notice
+            return {
+                score: Math.min(1.0, adjustedScore + advanceBonus),
+                dayOfWeek: dayName,
+                isWeekday,
+                isWeekend,
+                baseScore,
+                driverAdjustment: driverPreferences.adjustment,
+                advanceBonus,
+                acceptanceRate: driverPreferences.acceptanceRate,
+                reason: `${dayName} with ${Math.round(hoursUntilRide)}h notice - ${Math.round((adjustedScore + advanceBonus) * 100)}% preference`
+            }
+        }
+
+        return {
+            score: adjustedScore,
+            dayOfWeek: dayName,
+            isWeekday,
+            isWeekend,
+            baseScore,
+            driverAdjustment: driverPreferences.adjustment,
+            acceptanceRate: driverPreferences.acceptanceRate,
+            reason: `${dayName} - ${Math.round(adjustedScore * 100)}% preference`
+        }
+
+    } catch (error) {
+        console.error('Error calculating day of week factor:', error)
+        return {
+            score: 0.5,
+            dayOfWeek: 'unknown',
+            reason: 'Day preference calculation failed'
+        }
+    }
+}
+
+/**
+ * Get driver's time-of-day preferences based on historical acceptance patterns
+ * In a real implementation, this would query historical ride acceptance data
+ */
+function getDriverTimePreferences(driver, timeSlot) {
+    // This would ideally query a database of historical acceptances
+    // For now, we'll use some realistic patterns based on driver characteristics
+    
+    // Mock data based on driver patterns - in production, query actual historical data
+    const defaultPreferences = {
+        early_morning: { acceptanceRate: 0.65, adjustment: 0.0 },
+        morning: { acceptanceRate: 0.85, adjustment: 0.1 },
+        afternoon: { acceptanceRate: 0.80, adjustment: 0.05 },
+        late_afternoon: { acceptanceRate: 0.70, adjustment: 0.0 },
+        evening: { acceptanceRate: 0.55, adjustment: -0.05 },
+        night: { acceptanceRate: 0.25, adjustment: -0.2 }
+    }
+
+    // Apply driver-specific adjustments if available
+    // This could be based on driver profile, past behavior, stated preferences, etc.
+    let preferences = defaultPreferences[timeSlot] || { acceptanceRate: 0.5, adjustment: 0.0 }
+
+    // Example: Night shift drivers might prefer evening/night rides
+    if (driver.preferredShift === 'night') {
+        if (timeSlot === 'evening' || timeSlot === 'night') {
+            preferences.adjustment += 0.3
+        }
+    }
+
+    // Example: Part-time drivers might prefer afternoon/evening
+    if (driver.availability === 'part-time') {
+        if (timeSlot === 'afternoon' || timeSlot === 'late_afternoon') {
+            preferences.adjustment += 0.2
+        }
+    }
+
+    return {
+        acceptanceRate: preferences.acceptanceRate,
+        adjustment: Math.max(-0.5, Math.min(0.5, preferences.adjustment)) // Cap adjustments
+    }
+}
+
+/**
+ * Get driver's day-of-week preferences based on historical acceptance patterns
+ */
+function getDriverDayPreferences(driver, dayOfWeek, dayName) {
+    // Default acceptance rates by day (0=Sunday, 6=Saturday)
+    const defaultRates = [0.35, 0.80, 0.85, 0.85, 0.85, 0.75, 0.55] // Sun-Sat
+    
+    let baseAcceptanceRate = defaultRates[dayOfWeek] || 0.5
+    let adjustment = 0.0
+
+    // Apply driver-specific patterns
+    if (driver.availability === 'weekends-only') {
+        if (dayOfWeek === 0 || dayOfWeek === 6) { // Weekend
+            adjustment += 0.4
+        } else {
+            adjustment -= 0.6 // Strong preference against weekdays
+        }
+    } else if (driver.availability === 'weekdays-only') {
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) { // Weekday
+            adjustment += 0.2
+        } else {
+            adjustment -= 0.4 // Preference against weekends
+        }
+    }
+
+    // Example: Retirees might prefer weekdays
+    if (driver.ageGroup === 'senior' || driver.employment === 'retired') {
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+            adjustment += 0.15
+        }
+    }
+
+    // Example: Students might prefer weekends
+    if (driver.employment === 'student') {
+        if (dayOfWeek === 0 || dayOfWeek === 6) {
+            adjustment += 0.25
+        }
+    }
+
+    return {
+        acceptanceRate: baseAcceptanceRate,
+        adjustment: Math.max(-0.5, Math.min(0.5, adjustment))
     }
 }
 
@@ -263,17 +528,27 @@ function getAcceptanceReason(factors, eligible) {
     }
 
     const distanceReason = factors.distance?.reason || ''
-    const score = (factors.distance?.score || 0) + (factors.time?.score || 0) + (factors.urgency?.score || 0)
+    const timeOfDayInfo = factors.timeOfDay?.timeSlot ? ` (${factors.timeOfDay.timeSlot.replace('_', ' ')})` : ''
+    const dayOfWeekInfo = factors.dayOfWeek?.dayOfWeek ? ` on ${factors.dayOfWeek.dayOfWeek}` : ''
+    
+    const score = (factors.distance?.score || 0) + 
+                  (factors.time?.score || 0) + 
+                  (factors.urgency?.score || 0) +
+                  (factors.timeOfDay?.score || 0) +
+                  (factors.dayOfWeek?.score || 0)
 
-    if (score > 1.8) {
-        return `Excellent match: ${distanceReason}`
-    } else if (score > 1.3) {
-        return `Good match: ${distanceReason}`
-    } else if (score > 0.8) {
-        return `Fair match: ${distanceReason}`
+    let matchQuality
+    if (score > 2.5) {
+        matchQuality = 'Excellent match'
+    } else if (score > 2.0) {
+        matchQuality = 'Good match'
+    } else if (score > 1.5) {
+        matchQuality = 'Fair match'
     } else {
-        return `Poor match: ${distanceReason}`
+        matchQuality = 'Poor match'
     }
+
+    return `${matchQuality}: ${distanceReason}${timeOfDayInfo}${dayOfWeekInfo}`
 }
 
 /**
@@ -378,6 +653,16 @@ export async function processRidesForDriver(rides, driver, options = {}) {
             factors.urgency = urgencyScore
             score += urgencyScore.score * (options.urgencyWeight || 0.2)
 
+            // Time of day factor
+            const timeOfDayScore = calculateTimeOfDayFactor(ride, driver)
+            factors.timeOfDay = timeOfDayScore
+            score += timeOfDayScore.score * (options.timeOfDayWeight || 0.25)
+
+            // Day of week factor
+            const dayOfWeekScore = calculateDayOfWeekFactor(ride, driver)
+            factors.dayOfWeek = dayOfWeekScore
+            score += dayOfWeekScore.score * (options.dayOfWeekWeight || 0.15)
+
             // Normalize final score to 0-100 range
             const finalScore = Math.min(Math.max(score * 100, 0), 100)
             const eligible = factors.distance.distance <= (options.maxDistance || 50)
@@ -443,6 +728,8 @@ export function getAcceptanceConfig() {
         distanceWeight: parseFloat(process.env.DISTANCE_WEIGHT) || 1.0,
         timeWeight: parseFloat(process.env.TIME_WEIGHT) || 0.3,
         urgencyWeight: parseFloat(process.env.URGENCY_WEIGHT) || 0.2,
+        timeOfDayWeight: parseFloat(process.env.TIME_OF_DAY_WEIGHT) || 0.25,
+        dayOfWeekWeight: parseFloat(process.env.DAY_OF_WEEK_WEIGHT) || 0.15,
         batchSize: parseInt(process.env.PROCESSING_BATCH_SIZE) || 5
     }
 }
