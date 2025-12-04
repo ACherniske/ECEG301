@@ -19,7 +19,7 @@ function App() {
   }, [initializeAuth])
 
   return (
-    <Router>
+    <Router basename={import.meta.env.PROD ? '/ECEG301/driver' : ''}>
       <Routes>
         <Route
           path="/login"

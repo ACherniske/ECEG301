@@ -126,8 +126,22 @@ router.post('/driver/login', async (req, res) => {
       return res.status(401).json({ error: 'Driver account is not active' })
     }
 
-    // Verify password
-    const isPasswordValid = await comparePassword(password, driverData.password)
+    // Verify password - support both hashed and plain text passwords
+    let isPasswordValid = false
+    const storedPassword = driverData.password
+    
+    if (!storedPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' })
+    }
+    
+    if (storedPassword.startsWith('$2b$') || storedPassword.startsWith('$2a$')) {
+      // Password is hashed with bcrypt
+      isPasswordValid = await comparePassword(password, storedPassword)
+    } else {
+      // Plain text password (for development/migration)
+      isPasswordValid = password === storedPassword
+    }
+    
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid credentials' })
     }

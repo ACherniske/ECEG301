@@ -1,52 +1,41 @@
 import nodemailer from 'nodemailer'
-import dotenv from 'dotenv'
-
-// Load environment variables
-dotenv.config()
 
 class EmailService {
   constructor() {
     this.transporter = null
-    this.initializeTransporter()
+    this.initialized = false
   }
 
-  async initializeTransporter() {
-    console.log('=== EMAIL SERVICE INITIALIZATION ===')
-    console.log('process.env.EMAIL_USER:', process.env.EMAIL_USER)
-    console.log('process.env.EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? '[REDACTED]' : 'undefined')
+  async ensureInitialized() {
+    if (this.initialized) return
+    this.initialized = true
+    
+    // Skip initialization if credentials are not set
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_APP_PASSWORD) {
+      console.warn('Email service not configured: EMAIL_USER or EMAIL_APP_PASSWORD not set')
+      return
+    }
     
     try {
-    // Create a transporter using Gmail SMTP
       const config = {
         service: 'gmail',
         auth: {
-          user: process.env.EMAIL_USER || 'your-email@gmail.com',
-          pass: process.env.EMAIL_APP_PASSWORD || 'your-gmail-app-password'
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_APP_PASSWORD
         }
       }
       
-      console.log('Creating transporter with config:', {
-        service: config.service,
-        auth: {
-          user: config.auth.user,
-          pass: config.auth.pass ? '[REDACTED]' : 'undefined'
-        }
-      })
-      
       this.transporter = nodemailer.createTransport(config)
-
-      // Verify connection
-      console.log('Verifying email connection...')
       await this.transporter.verify()
       console.log('Email service initialized successfully')
     } catch (error) {
       console.error('Failed to initialize email service:', error.message)
-      console.error('Full error:', error)
       this.transporter = null
     }
   }
 
   async sendInvitationEmail(invitation, organizationName) {
+    await this.ensureInitialized()
     if (!this.transporter) {
       throw new Error('Email service not initialized')
     }
@@ -237,6 +226,7 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
   }
 
   async sendPasswordResetEmail(email, resetToken, organizationName) {
+    await this.ensureInitialized()
     if (!this.transporter) {
       throw new Error('Email service not initialized')
     }
@@ -290,6 +280,7 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
   }
 
   async sendGenericEmail(to, subject, htmlContent, textContent = '') {
+    await this.ensureInitialized()
     if (!this.transporter) {
       throw new Error('Email service not initialized')
     }
@@ -315,6 +306,7 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
   }
 
   async sendPatientConfirmationEmail(patientEmail, patientName, rideDetails) {
+    await this.ensureInitialized()
     if (!this.transporter) {
       throw new Error('Email service not initialized')
     }

@@ -2,79 +2,121 @@
 
 A Node.js/Express backend API that integrates with Google Sheets to manage healthcare transportation rides, patient data, and appointments.
 
-## 🚀 Quick Start
+## 🚀 Deployment
 
-### Prerequisites
-- Node.js 20 or higher
+### Vercel Deployment (Recommended)
+
+This backend is optimized for Vercel serverless deployment.
+
+**Prerequisites:**
+- Vercel CLI installed (`npm i -g vercel`)
+- Vercel account linked
+
+**Deploy:**
+```bash
+cd backend
+vercel --prod
+```
+
+**Required Environment Variables (set in Vercel dashboard):**
+- `GOOGLE_SHEET_ID` - Your Google Sheets ID
+- `GOOGLE_PROJECT_ID` - Google Cloud project ID
+- `GOOGLE_CLIENT_EMAIL` - Service account email
+- `GOOGLE_PRIVATE_KEY` - Base64 encoded private key
+- `JWT_SECRET` - Secret for JWT token signing
+- `EMAIL_USER` - Gmail address for sending emails
+- `EMAIL_APP_PASSWORD` - Gmail app password
+
+### Local Development
+
+**Prerequisites:**
+- Node.js 20.x or higher  
 - Google Cloud Service Account with Sheets API access
-- Google Sheets document with proper structure
 
-### Environment Setup
+**Setup:**
+```bash
+cd backend
+npm install
+```
 
-Create a `.env` file with:
+**Create `.env` file:**
 ```env
-# Server Configuration
 PORT=3000
 NODE_ENV=development
 FRONTEND_URL=http://localhost:5173
-
-# Email Configuration
-EMAIL_USER=medirideportal@gmail.com
-EMAIL_APP_PASSWORD=your_app_password
-
-# Google Sheets Configuration
-GOOGLE_SHEET_ID=your_google_sheet_id
-
-# Provider Sheets
-RIDES_SHEET=Rides
-PROVIDERS_SHEET=ProviderAccounts
-
-# Driver Sheets
-DRIVERS_SHEET=DriverAccounts
-
-# EHR Sheets
-PATIENTS_SHEET=Patients
-APPOINTMENTS_SHEET=Appointments
-
-# Additional Sheets
-INVITATIONS_SHEET=Invitations
-
-# Google Service Account Key (JSON string)
-GOOGLE_SERVICE_ACCOUNT_KEY='{...}'
+JWT_SECRET=your-secret-key
+EMAIL_USER=your-email@gmail.com
+EMAIL_APP_PASSWORD=your-app-password
+GOOGLE_SHEET_ID=your-sheet-id
 ```
+
+**Run locally:**
+```bash
+npm run dev
+```
+
+## 📡 API Routes
+
+### Public Routes (No Authentication)
+- `POST /api/auth/login` - User login
+- `POST /api/auth/driver/login` - Driver login
+- `POST /api/auth/driver/register` - Driver registration
+- `GET /api/accept-invitation/:token` - Get invitation details
+- `POST /api/accept-invitation/:token` - Accept invitation
+- `GET /api/rides/:rideId/details` - Get ride details (with token)
+- `POST /api/rides/:rideId/confirm` - Confirm ride
+
+### Driver Portal Routes (Driver JWT Required)
+- `GET /api/driver/profile` - Get driver profile
+- `GET /api/driver/rides` - Get available rides
+- `POST /api/driver/rides/:rideId/accept` - Accept a ride
+- `PUT /api/driver/rides/:rideId/status` - Update ride status
+
+### Protected Routes (JWT Required)
+All routes under `/api/org/:orgId/` require authentication:
+- `GET /api/org/:orgId/rides` - Get organization rides
+- `POST /api/org/:orgId/rides` - Create ride
+- `GET /api/org/:orgId/patients/search` - Search patients
+- `GET /api/org/:orgId/patients/:patientId/appointments` - Get appointments
+- `GET /api/org/:orgId/drivers` - Get drivers
+- `GET /api/org/:orgId/users` - Get users
+- `POST /api/org/:orgId/invitations` - Create invitation
 
 ## 📊 Google Sheets Structure
 
-The API expects these sheets with specific column structures:
+### Required Sheets:
+- `Rides` - Transportation rides
+- `Patients` - Patient records
+- `Appointments` - Appointment data
+- `DriverAccounts` - Driver accounts
+- `ProviderAccounts` - Provider/staff accounts  
+- `Organizations` - Organization data
+- `Invitations` - User invitations
 
-### Rides Sheet (Columns A-P) - **Updated Structure with Appointment ID**
-| Column | Field | Description |
-|--------|-------|-------------|
-| A | orgId | Organization identifier |
-| B | id | Ride unique identifier |
-| C | patientName | Patient full name |
-| D | patientId | Patient identifier |
-| E | appointmentDate | Date of appointment (YYYY-MM-DD) |
-| F | **appointmentId** | **Appointment unique identifier** |
-| G | pickupTime | Scheduled pickup time |
-| H | roundTrip | Boolean for round trip requirement |
-| I | appointmentTime | Appointment time |
-| J | providerLocation | Appointment/provider location |
-| K | status | Ride status (pending/confirmed/completed/cancelled) |
-| L | notes | Special requirements and notes |
-| M | pickupLocation | Patient pickup location |
-| N | driverName | Assigned driver name |
-| O | driverPlate | Driver vehicle license plate |
-| P | driverCar | Driver vehicle make/model |
-
-### Patients Sheet (Columns A-G)
-| Column | Field | Description |
-|--------|-------|-------------|
-| A | OrgId | Organization identifier |
-| B | PatientId | Patient unique identifier |
-| C | FirstName | Patient first name |
-| D | LastName | Patient last name |
-| E | DateOfBirth | Patient DOB (YYYY-MM-DD) |
+### Rides Sheet Columns (A-U)
+| Column | Field |
+|--------|-------|
+| A | orgId |
+| B | id |
+| C | patientName |
+| D | patientId |
+| E | appointmentDate |
+| F | appointmentId |
+| G | pickupTime |
+| H | roundTrip |
+| I | appointmentTime |
+| J | providerLocation |
+| K | status |
+| L | driverName |
+| M | driverPlate |
+| N | driverCar |
+| O | appointmentType |
+| P | providerName |
+| Q | patientPhone |
+| R | pickupLocation |
+| S | notes |
+| T | distanceMiles |
+| U | durationMinutes |
 | F | Phone | Contact phone number |
 | G | Address | Patient home address |
 

@@ -2,8 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const basePath = process.env.NODE_ENV === 'production' ? '/ECEG301/driver/' : '/'
+
 export default defineConfig({
-  base: process.env.NODE_ENV === 'production' ? '/ECEG301/driver/' : '/',
+  base: basePath,
   plugins: [
     react(),
     VitePWA({
@@ -19,11 +21,11 @@ export default defineConfig({
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
-        scope: process.env.VITE_BASE_PATH || '/',
-        start_url: process.env.VITE_BASE_PATH || '/',
+        scope: basePath,
+        start_url: basePath,
         icons: [
           {
-            src: '/vite.svg',
+            src: 'vite.svg',
             sizes: '192x192',
             type: 'image/svg+xml',
             purpose: 'any maskable'

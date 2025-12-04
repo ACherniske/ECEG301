@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/ECEG301/driver/dev-sw.js?dev-sw', { scope: '/ECEG301/driver/', type: 'classic' })

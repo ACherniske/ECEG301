@@ -1,8 +1,5 @@
 import { Client } from '@googlemaps/google-maps-services-js'
-import dotenv from 'dotenv'
 import { distanceCache } from './distanceCache.js'
-
-dotenv.config()
 
 const client = new Client({})
 

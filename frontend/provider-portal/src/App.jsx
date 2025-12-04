@@ -100,7 +100,7 @@ function AppRoutes() {
   }
 
   return (
-    <Router basename={import.meta.env.PROD ? '/ECEG301' : ''}>
+    <Router basename={import.meta.env.PROD ? '/ECEG301/provider' : ''}>
       <LocationLogger />
       <Routes>
         {/* Root route - must be first for proper matching */}
