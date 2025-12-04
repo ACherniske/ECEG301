@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { Lock, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { useDriverStore } from '../store/driverStore'
 import { authService } from '../services/authService'
-import { Button } from '../components/shared/button'
+import { Button } from '../components/shared/Button'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
