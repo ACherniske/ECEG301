@@ -60,9 +60,9 @@ export default function LoginPage() {
           {/* Header */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-3xl">P</span>
+              <span className="text-white font-bold text-3xl">M</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">MedRoute Provider</h1>
             <p className="text-gray-600 font-medium">Sign in to your account</p>
           </div>
 

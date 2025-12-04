@@ -235,9 +235,9 @@ export default function AcceptInvitationPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto mb-4 flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-3xl">P</span>
+              <span className="text-white font-bold text-3xl">M</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome!</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to MedRoute!</h1>
             <p className="text-gray-600 font-medium">Set up your account</p>
           </div>
 
