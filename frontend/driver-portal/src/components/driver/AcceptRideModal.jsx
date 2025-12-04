@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { X, Clock, MapPin, Calendar, CheckCircle, Car } from 'lucide-react'
-import { Button } from './shared/Button'
+import { Button } from '../shared/Button'
 import { useDriverStore } from '../../store/driverStore'
 
 export const AcceptRideModal = ({ ride, onClose, onConfirm }) => {

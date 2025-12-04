@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { User, Mail, Phone, Car, MapPin, LogOut, Edit } from 'lucide-react'
 import { BottomNav } from '../components/shared/BottomNav'
-import { Button } from '../components/shared/button'
+import { Button } from '../components/shared/Button'
 import { useDriverStore } from '../store/driverStore'
 import { driverService } from '../services/driverService'
 
