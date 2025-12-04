@@ -10,42 +10,29 @@ const allowedOrigins = [
 ];
 
 function getAllowedOrigin(requestOrigin) {
-  if (!requestOrigin) return 'https://acherniske.github.io';
+  if (!requestOrigin) return '*';
   if (allowedOrigins.includes(requestOrigin)) return requestOrigin;
   if (requestOrigin.startsWith('https://acherniske.github.io')) return requestOrigin;
-  return 'https://acherniske.github.io';
+  return '*';
 }
 
 // Vercel serverless handler
 export default async function handler(req, res) {
   const origin = getAllowedOrigin(req.headers.origin);
   
-  // Set CORS headers for all responses
+  // Set CORS headers for ALL responses FIRST
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400');
   
-  // Handle CORS preflight
+  // Handle CORS preflight immediately - don't pass to Express
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    res.status(200).end();
+    return;
   }
   
-  try {
-    // Pass to Express app - use a Promise wrapper for proper handling
-    return new Promise((resolve, reject) => {
-      app(req, res);
-      
-      // Listen for response finish
-      res.on('finish', resolve);
-      res.on('error', reject);
-    });
-  } catch (error) {
-    console.error('Handler error:', error.message);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      timestamp: new Date().toISOString()
-    });
-  }
+  // Pass to Express app
+  return app(req, res);
 }
