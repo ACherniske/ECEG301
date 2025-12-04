@@ -3,85 +3,307 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MediRide - Healthcare Transportation</title>
+    <title>MedRoute Suite - Healthcare Transportation Platform</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            position: relative;
+            overflow: hidden;
         }
+        
+        /* Animated background elements */
+        body::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: float 20s linear infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(50px, 50px) rotate(5deg); }
+        }
+        
+        /* Floating orbs */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+            backdrop-filter: blur(5px);
+            animation: orb-float 8s ease-in-out infinite;
+        }
+        
+        .orb-1 {
+            width: 300px;
+            height: 300px;
+            top: -100px;
+            right: -100px;
+            animation-delay: 0s;
+        }
+        
+        .orb-2 {
+            width: 200px;
+            height: 200px;
+            bottom: -50px;
+            left: -50px;
+            animation-delay: -2s;
+        }
+        
+        .orb-3 {
+            width: 150px;
+            height: 150px;
+            top: 50%;
+            left: 10%;
+            animation-delay: -4s;
+        }
+        
+        @keyframes orb-float {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-30px) scale(1.05); }
+        }
+        
         .container {
             text-align: center;
-            max-width: 600px;
+            max-width: 800px;
+            position: relative;
+            z-index: 10;
         }
+        
+        .logo {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        
+        .logo span {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+        }
+        
         h1 {
             color: white;
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            font-size: 3.5rem;
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.2);
         }
-        p {
+        
+        .tagline {
             color: rgba(255,255,255,0.9);
-            font-size: 1.2rem;
-            margin-bottom: 2rem;
+            font-size: 1.25rem;
+            margin-bottom: 3rem;
+            font-weight: 400;
         }
+        
         .portal-links {
             display: flex;
-            gap: 20px;
+            gap: 24px;
             justify-content: center;
             flex-wrap: wrap;
         }
+        
         .portal-card {
-            background: white;
-            border-radius: 16px;
-            padding: 30px 40px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 32px;
             text-decoration: none;
             color: #333;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            transition: transform 0.3s, box-shadow 0.3s;
-            min-width: 200px;
+            box-shadow: 
+                0 20px 60px rgba(0,0,0,0.2),
+                0 0 0 1px rgba(255,255,255,0.1) inset;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 300px;
+            position: relative;
+            overflow: hidden;
         }
+        
+        .portal-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa);
+            transform: scaleX(0);
+            transition: transform 0.4s ease;
+        }
+        
+        .portal-card:hover::before {
+            transform: scaleX(1);
+        }
+        
         .portal-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+            transform: translateY(-12px) scale(1.02);
+            box-shadow: 
+                0 30px 80px rgba(0,0,0,0.25),
+                0 0 0 1px rgba(255,255,255,0.2) inset;
         }
+        
+        .card-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            border-radius: 16px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+        }
+        
+        .card-icon svg {
+            width: 28px;
+            height: 28px;
+            color: white;
+        }
+        
         .portal-card h2 {
             font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-            color: #2563eb;
+            margin-bottom: 8px;
+            color: #1e3a8a;
+            font-weight: 600;
         }
+        
         .portal-card p {
-            color: #666;
-            font-size: 0.9rem;
-            margin-bottom: 0;
+            color: #64748b;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 20px;
         }
-        .portal-card.driver h2 {
-            color: #059669;
+        
+        .card-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #2563eb;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: gap 0.3s ease;
+        }
+        
+        .portal-card:hover .card-link {
+            gap: 12px;
+        }
+        
+        .card-link svg {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.3s ease;
+        }
+        
+        .portal-card:hover .card-link svg {
+            transform: translateX(4px);
+        }
+        
+        .footer {
+            margin-top: 48px;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.85rem;
+        }
+        
+        .footer a {
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .footer a:hover {
+            color: white;
+        }
+        
+        @media (max-width: 680px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .portal-card {
+                width: 100%;
+                max-width: 340px;
+            }
+            
+            .orb {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    
     <div class="container">
-        <h1>MediRide</h1>
-        <p>Healthcare Transportation Management System</p>
+        <div class="logo">
+            <span>M</span>
+        </div>
+        <h1>MedRoute Suite</h1>
+        <p class="tagline">Healthcare Transportation Platform</p>
+        
         <div class="portal-links">
             <a href="./provider/" class="portal-card">
-                <h2>Provider Portal</h2>
-                <p>For healthcare providers to manage patient transportation</p>
+                <div class="card-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                    </svg>
+                </div>
+                <h2>MedRoute Provider</h2>
+                <p>Manage patient transportation requests, schedule rides, and coordinate with drivers seamlessly.</p>
+                <span class="card-link">
+                    Open Portal
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                    </svg>
+                </span>
             </a>
-            <a href="./driver/" class="portal-card driver">
-                <h2>Driver Portal</h2>
-                <p>For drivers to view and manage ride assignments</p>
+            
+            <a href="./driver/" class="portal-card">
+                <div class="card-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                </div>
+                <h2>MedRoute Fleet</h2>
+                <p>View available rides, manage assignments, and track your completed trips in real-time.</p>
+                <span class="card-link">
+                    Open Portal
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/>
+                    </svg>
+                </span>
             </a>
+        </div>
+        
+        <div class="footer">
+            <p>HIPAA Compliant • Secure • Reliable</p>
         </div>
     </div>
 </body>

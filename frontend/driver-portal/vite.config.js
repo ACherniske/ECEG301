@@ -14,8 +14,8 @@ export default defineConfig({
         enabled: true
       },
       manifest: {
-        name: 'MediRide Driver',
-        short_name: 'MediRide',
+        name: 'MedRoute Fleet',
+        short_name: 'MedRoute Fleet',
         description: 'Healthcare transportation driver app',
         theme_color: '#2563eb',
         background_color: '#ffffff',

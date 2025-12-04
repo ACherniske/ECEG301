@@ -1,6 +1,6 @@
 // Google Sheets Configuration
 // Sheet ID should be set via environment variable in production
-export const SHEET_ID = process.env.GOOGLE_SHEET_ID
+export const SHEET_ID = process.env.GOOGLE_SHEET_ID || '1x74G7Okl56yoLku2XVdTpz3LWaNlJf9EBYp9J2kAX28'
 
 // Sheet Names
 export const RIDES_SHEET = process.env.RIDES_SHEET || 'Rides'

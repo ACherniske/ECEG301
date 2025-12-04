@@ -45,7 +45,7 @@ export default function LoginPage() {
             <div className="w-20 h-20 bg-blue-600 rounded-3xl mx-auto mb-4 flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-3xl">M</span>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Driver Portal</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">MedRoute Fleet</h1>
             <p className="text-gray-600">Sign in to your account</p>
           </div>
 

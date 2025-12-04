@@ -126,15 +126,15 @@ class EmailService {
         <body>
           <div class="container">
             <div class="header">
-              <div class="logo">P</div>
+              <div class="logo">M</div>
               <h1 style="margin: 0; font-size: 28px;">You're Invited!</h1>
-              <p style="margin: 10px 0 0; opacity: 0.9;">Join the Provider Portal platform</p>
+              <p style="margin: 10px 0 0; opacity: 0.9;">Join the MedRoute Provider platform</p>
             </div>
             
             <div class="content">
               <p>Hello <strong>${invitation.firstName} ${invitation.lastName}</strong>,</p>
               
-              <p>You've been invited to join <strong>${organizationName}</strong> on the Provider Portal platform as a <strong>${invitation.role}</strong>.</p>
+              <p>You've been invited to join <strong>${organizationName}</strong> on the MedRoute Provider platform as a <strong>${invitation.role}</strong>.</p>
               
               <div class="invite-box">
                 <h3 style="margin: 0 0 10px; color: #1f2937;">Invitation Details</h3>
@@ -162,7 +162,7 @@ class EmailService {
             </div>
             
             <div class="footer">
-              <p>Provider Portal - Healthcare Transportation Platform</p>
+              <p>MedRoute Provider - Healthcare Transportation Platform</p>
               <p>Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted</p>
             </div>
           </div>
@@ -175,7 +175,7 @@ You're invited to join ${organizationName}!
 
 Hello ${invitation.firstName} ${invitation.lastName},
 
-You've been invited to join ${organizationName} on the Provider Portal platform as a ${invitation.role}.
+You've been invited to join ${organizationName} on the MedRoute Provider platform as a ${invitation.role}.
 
 Invitation Details:
 - Organization: ${organizationName}
@@ -190,17 +190,17 @@ This invitation will expire on ${new Date(invitation.expiresAt).toLocaleDateStri
 
 If you didn't expect this invitation or have questions, please contact your organization administrator.
 
-Provider Portal - Healthcare Transportation Platform
+MedRoute Provider - Healthcare Transportation Platform
 Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
     `
 
     const mailOptions = {
       from: {
-        name: 'Provider Portal',
+        name: 'MedRoute Provider',
         address: process.env.EMAIL_USER
       },
       to: invitation.email,
-      subject: `Invitation to join ${organizationName} on Provider Portal`,
+      subject: `Invitation to join ${organizationName} on MedRoute Provider`,
       text: textContent,
       html: htmlContent,
     }
@@ -239,7 +239,7 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
       <html>
         <head>
           <meta charset="utf-8">
-          <title>Password Reset - Provider Portal</title>
+          <title>Password Reset - MedRoute Provider</title>
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
@@ -249,7 +249,7 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
         <body>
           <div class="container">
             <h2>Password Reset Request</h2>
-            <p>You requested a password reset for your Provider Portal account.</p>
+            <p>You requested a password reset for your MedRoute Provider account.</p>
             <p>Click the link below to reset your password:</p>
             <p><a href="${resetUrl}" class="btn">Reset Password</a></p>
             <p>If you didn't request this reset, please ignore this email.</p>
@@ -261,11 +261,11 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
 
     const mailOptions = {
       from: {
-        name: 'Provider Portal',
+        name: 'MedRoute Provider',
         address: process.env.EMAIL_USER
       },
       to: email,
-      subject: 'Password Reset - Provider Portal',
+      subject: 'Password Reset - MedRoute Provider',
       html: htmlContent,
     }
 
@@ -286,7 +286,7 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
     }
     const mailOptions = {
       from: {
-        name: 'Provider Portal',
+        name: 'MedRoute Provider',
         address: process.env.EMAIL_USER
       },
       to,
@@ -349,7 +349,7 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Transportation Confirmation Required - Provider Portal</title>
+          <title>Transportation Confirmation Required - MedRoute Suite</title>
           <style>
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
@@ -749,7 +749,7 @@ Protected Health Information (PHI) | HIPAA Compliant | End-to-End Encrypted
             </div>
             
             <div class="footer">
-              <div class="footer-title">Provider Portal Healthcare Transportation</div>
+              <div class="footer-title">MedRoute Suite Healthcare Transportation</div>
               <div class="footer-text">HIPAA Compliant • Secure Transportation Services</div>
               <div class="footer-text">Your privacy and comfort are our top priorities</div>
             </div>
@@ -785,13 +785,13 @@ Need to make changes or have questions?
 
 This confirmation link will expire in 48 hours.
 
-Provider Portal - Healthcare Transportation
+MedRoute Suite - Healthcare Transportation
 HIPAA Compliant | Secure Transportation Services
     `
 
     const mailOptions = {
       from: {
-        name: 'Provider Portal - Transportation Services',
+        name: 'MedRoute Suite - Transportation Services',
         address: process.env.EMAIL_USER
       },
       to: patientEmail,

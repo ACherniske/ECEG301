@@ -13,10 +13,10 @@ export const NavBar = () => {
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate(`/org/${orgId}/dashboard`)}>
           <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md hover:shadow-lg transition-shadow">
-            <span className="text-blue-600 font-bold text-lg">P</span>
+            <span className="text-blue-600 font-bold text-lg">M</span>
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Provider Portal</h1>
+            <h1 className="text-2xl font-bold">MedRoute Provider</h1>
             {organization && (
               <p className="text-xs text-blue-100">{organization.name}</p>
             )}
