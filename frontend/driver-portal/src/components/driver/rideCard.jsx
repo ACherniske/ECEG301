@@ -120,7 +120,7 @@ export const EnhancedRideCard = ({ ride, onAccept, onView }) => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Destination</p>
-            <p className="text-sm text-gray-900 leading-snug">{ride.providerLocation}</p>
+            <p className="text-sm text-gray-900 leading-snug">{ride.providerLocation || ride.appointmentLocation || ride.location || 'Not specified'}</p>
           </div>
         </div>
 
