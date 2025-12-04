@@ -31,3 +31,4 @@ ServiceAccount.json
 !.elasticbeanstalk/*.global.yml
 certificate.crt
 private.key
+backend/.env.production

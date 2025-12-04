@@ -2,8 +2,10 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 
-// Load environment variables FIRST
-dotenv.config()
+// Load environment variables FIRST - only in development
+if (process.env.NODE_ENV !== 'production') {
+    dotenv.config()
+}
 
 import authRoutes from './routes/auth.js'
 import ridesRoutes from './routes/rides.js'
@@ -16,60 +18,75 @@ import invitationRoutes from './routes/invitations.js'
 import publicInvitationRoutes from './routes/publicInvitations.js'
 import organizationRoutes from './routes/organizations.js'
 import userRoutes from './routes/users.js'
-import { initializeGoogleSheets, getSheets } from './config/googleSheets.js'
-import { SHEET_ID} from './constants/sheetConfig.js'
-import emailService from './services/emailService.js'
+import { initializeGoogleSheets, isInitialized } from './config/googleSheets.js'
+import { SHEET_ID } from './constants/sheetConfig.js'
 import { authenticateToken } from './middleware/auth.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
 
-// Debug environment variables
-console.log('Environment check:')
-console.log('- NODE_ENV:', process.env.NODE_ENV)
-console.log('- EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set')
-console.log('- EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? 'Set' : 'Not set')
-
-// Middleware
+// CORS Configuration
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:5175',
     'http://localhost:5176',
     'https://acherniske.github.io',
-    'https://d26gevognsrobh.cloudfront.net',
     process.env.FRONTEND_URL
 ].filter(Boolean)
 
 app.use(cors({
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, curl, etc)
+        if (!origin) return callback(null, true)
+        
+        // Check if origin matches allowed list or starts with github.io domain
+        if (allowedOrigins.includes(origin) || origin.startsWith('https://acherniske.github.io')) {
+            return callback(null, true)
+        }
+        
+        callback(new Error('Not allowed by CORS'))
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-    allowedHeaders: [
-        'Origin',
-        'X-Requested-With', 
-        'Content-Type', 
-        'Accept', 
-        'Authorization',
-        'Cache-Control',
-        'X-HTTP-Method-Override'
-    ],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
-    preflightContinue: false,
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
     optionsSuccessStatus: 200
 }))
+
 app.use(express.json())
 
-// Initialize Google Sheets on startup
-await initializeGoogleSheets()
-console.log('Google Sheets initialized')
+// Initialize services
+let servicesInitialized = false
 
-// Check email service status
-setTimeout(() => {
-    console.log('Email service status:', emailService.transporter ? 'Ready' : 'Not ready')
-}, 1000) // Give it a moment to initialize
+async function initializeServices() {
+    if (servicesInitialized) return true
+    
+    try {
+        await initializeGoogleSheets()
+        servicesInitialized = true
+        return true
+    } catch (error) {
+        console.error('Failed to initialize services:', error.message)
+        return false
+    }
+}
 
-// Health check routes (AWS EB checks root path by default)
+// Middleware to ensure services are initialized before handling requests
+app.use(async (req, res, next) => {
+    if (!servicesInitialized) {
+        try {
+            await initializeServices()
+        } catch (error) {
+            return res.status(503).json({ 
+                error: 'Service unavailable', 
+                message: 'Backend services are initializing. Please try again.' 
+            })
+        }
+    }
+    next()
+})
+
+// Health check routes
 app.get('/', (req, res) => {
     res.json({ 
         status: 'healthy',
@@ -79,22 +96,10 @@ app.get('/', (req, res) => {
 })
 
 app.get('/health', (req, res) => {
-    const sheets = getSheets()
     res.json({ 
         status: 'healthy', 
         timestamp: new Date().toISOString(),
-        sheets: sheets ? 'connected' : 'disconnected',
-        email: emailService.transporter ? 'ready' : 'not ready'
-    })
-})
-
-// Debug endpoint to see what headers CloudFront forwards
-app.get('/debug/headers', (req, res) => {
-    res.json({
-        headers: req.headers,
-        authorization: req.headers.authorization || 'Not present',
-        customToken: req.headers['x-auth-token'] || 'Not present',
-        forwardedToken: req.headers['x-forwarded-token'] || 'Not present'
+        sheets: isInitialized() ? 'connected' : 'disconnected'
     })
 })
 
@@ -115,9 +120,9 @@ app.use('/api/org', authenticateToken, appointmentRoutes)
 app.use('/api/org', authenticateToken, organizationRoutes)
 app.use('/api/org', authenticateToken, invitationRoutes)
 
-// Error handling
+// Error handling middleware
 app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err)
+    console.error('Unhandled error:', err.message)
     res.status(500).json({ 
         error: 'Internal server error',
         message: process.env.NODE_ENV === 'development' ? err.message : undefined
@@ -126,15 +131,20 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
-    console.log(`404 - Route not found: ${req.method} ${req.path}`)
     res.status(404).json({ error: 'Route not found' })
 })
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
-    console.log(`Connected to Google Sheet: ${SHEET_ID}`)
-    console.log(`CORS enabled for: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`)
-})
+// Start server only when not in Vercel serverless environment
+if (process.env.VERCEL !== '1') {
+    initializeServices().then(() => {
+        app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`)
+            console.log(`Connected to Google Sheet: ${SHEET_ID}`)
+        })
+    }).catch(error => {
+        console.error('Failed to start server:', error)
+        process.exit(1)
+    })
+}
 
 export default app
