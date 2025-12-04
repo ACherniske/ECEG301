@@ -80,7 +80,7 @@ export const MyRideCard = ({ ride, onStartRide, onViewDetails, onCancel }) => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-0.5">Destination</p>
-            <p className="text-sm text-gray-900 leading-snug">{ride.appointmentLocation || ride.location}</p>
+            <p className="text-sm text-gray-900 leading-snug">{ride.providerLocation || ride.appointmentLocation || ride.location || 'Not specified'}</p>
             <p className="text-xs text-gray-600 mt-1 flex items-center gap-1">
               <Calendar size={12} /> {ride.appointmentDate} at {ride.appointmentTime}
             </p>
