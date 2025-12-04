@@ -32,11 +32,9 @@ export default function AcceptInvitationPage() {
       }
 
       try {
-        console.log('Loading invitation with token:', token)
         const response = await api.get(`/accept-invitation/${token}`)
         const data = response.data
         
-        console.log('Invitation data:', data)
         setInvitation(data)
       } catch (err) {
         console.error('Error loading invitation:', err)
@@ -67,7 +65,6 @@ export default function AcceptInvitationPage() {
     setSubmitting(true)
 
     try {
-      console.log('Accepting invitation...')
       const response = await api.post(`/accept-invitation/${token}`, {
         password: formData.password,
       })
@@ -77,8 +74,6 @@ export default function AcceptInvitationPage() {
       if (!success || !authToken) {
         throw new Error('Invalid response from server')
       }
-
-      console.log('Account created successfully:', { user, organization })
       
       // Store the created account data for the success screen
       setCreatedAccount({ user, organization, token: authToken })

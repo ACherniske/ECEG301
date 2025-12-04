@@ -75,7 +75,6 @@ export default function OrgProfilePage() {
 
   // Load user data when page is accessed
   useEffect(() => {
-    console.log('Profile page mounted/accessed')
     if (orgId && user) {
       setError('')
       setSuccess('')
@@ -101,8 +100,6 @@ export default function OrgProfilePage() {
           bio: user.bio || ''
         }))
       }
-
-      console.log('User profile loaded')
     } catch (err) {
       console.error('Error loading user data:', err)
       setError('Failed to load profile data')
@@ -148,8 +145,6 @@ export default function OrgProfilePage() {
       if (!emailRegex.test(profileData.email)) {
         throw new Error('Please enter a valid email address')
       }
-
-      console.log('Saving profile data:', profileData)
 
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500))
@@ -197,8 +192,6 @@ export default function OrgProfilePage() {
     setError('')
 
     try {
-      console.log('Changing password...')
-
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500))
 

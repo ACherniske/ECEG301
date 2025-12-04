@@ -48,7 +48,6 @@ export default function OrgAdminPage() {
 
   // Auto-refresh when page is accessed
   useEffect(() => {
-    console.log('Admin page mounted/accessed')
     if (orgId) {
       // Clear any existing error/success messages when switching to this page
       setError('')
@@ -64,8 +63,6 @@ export default function OrgAdminPage() {
     setLoading(true)
     setError('')
     try {
-      console.log('Fetching admin data...')
-      
       // Fetch invitations and users in parallel
       const [invResponse, usersResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/api/org/${orgId}/invitations`, {
