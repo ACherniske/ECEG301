@@ -26,7 +26,7 @@
 
 ## Overview
 
-MedRoute Suite is a comprehensive healthcare transportation management platform designed to streamline patient transportation logistics. It connects healthcare providers with drivers to ensure patients reach their medical appointments safely and on time. This project was created as part of ECEG 301 - Praxis of Engineering Design at Bucknell University in 2025. The goal of the course was to practice systems engineering, planning, and execution while completing research and interviews about topics surrounding United Nations Sustainable Development Goal 3 - Good Health and Wellbeing. 
+MedRoute Suite is a comprehensive healthcare transportation management platform designed to streamline patient transportation logistics. It connects healthcare providers with drivers to ensure patients reach their medical appointments safely and on time. This project was created as part of ECEG 301 - Praxis of Engineering Design at Bucknell University in 2025. The goal of the course was to practice systems engineering, planning, and execution while completing research and interviews about topics surrounding United Nations Sustainable Development Goal 3 - Good Health and Wellbeing.
 
 ## Architecture
 
@@ -37,18 +37,18 @@ graph TB
         PP[Provider Portal]
         DP[Driver Portal]
     end
-    
+
     subgraph Backend["Backend (Vercel)"]
         API[Express.js API]
         AUTH[JWT Authentication]
         EMAIL[Email Service]
         MAPS[Google Maps Service]
     end
-    
+
     subgraph Data["Data Layer"]
         GS[(Google Sheets)]
     end
-    
+
     LP --> PP
     LP --> DP
     PP --> API
@@ -69,19 +69,19 @@ graph LR
         GH["📁 gh-pages-root"]
         S["📁 scripts"]
     end
-    
+
     subgraph Backend["backend/"]
         API2["📁 api"]
         ROUTES["📁 routes"]
         SERVICES["📁 services"]
         CONFIG["📁 config"]
     end
-    
+
     subgraph Frontend2["frontend/"]
         PROV["📁 provider-portal"]
         DRIV["📁 driver-portal"]
     end
-    
+
     B --> Backend
     F --> Frontend2
 ```
@@ -108,6 +108,8 @@ stateDiagram-v2
     Claimed --> Cancelled: Driver cancels
 ```
 
+> **See [FLOWS.md](./FLOWS.md) for detailed user and technical flow diagrams.**
+
 ## Quick Start
 
 ### Prerequisites
@@ -130,7 +132,7 @@ cd frontend/provider-portal
 npm install
 npm run dev
 
-# Driver Portal  
+# Driver Portal
 cd frontend/driver-portal
 npm install
 npm run dev
@@ -140,9 +142,9 @@ npm run dev
 
 | Portal | URL |
 |--------|-----|
-| 🏠 Landing Page | [acherniske.github.io/ECEG301](https://acherniske.github.io/ECEG301) |
-| 🏥 Provider Portal | [acherniske.github.io/ECEG301/provider](https://acherniske.github.io/ECEG301/provider) |
-| 🚗 Driver Portal | [acherniske.github.io/ECEG301/driver](https://acherniske.github.io/ECEG301/driver) |
+| Landing Page | [acherniske.github.io/ECEG301](https://acherniske.github.io/ECEG301) |
+| Provider Portal | [acherniske.github.io/ECEG301/provider](https://acherniske.github.io/ECEG301/provider) |
+| Driver Portal | [acherniske.github.io/ECEG301/driver](https://acherniske.github.io/ECEG301/driver) |
 
 ## Tech Stack
 
