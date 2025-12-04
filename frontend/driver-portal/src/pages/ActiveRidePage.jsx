@@ -138,7 +138,6 @@ export default function ActiveRidePage() {
     // Load ride details if not in state
     if (!activeRide || activeRide.id !== rideId) {
       // TODO: Fetch ride details from backend
-      console.log('Load ride:', rideId)
     }
   }, [rideId, activeRide])
 
@@ -222,9 +221,6 @@ export default function ActiveRidePage() {
         currentStage: nextStageIndex // Critical for round trips to track actual stage
       }
       setActiveRide(updatedRide)
-      
-      // Show success feedback
-      console.log(`Stage updated to: ${nextStage.title} (Stage ${nextStageIndex + 1}/${rideStages.length})`)
       
     } catch (error) {
       console.error('Failed to update ride status:', error)

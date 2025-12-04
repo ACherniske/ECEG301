@@ -36,7 +36,6 @@ export default function OrgScheduleRidePage() {
 
   // Reset form when page is accessed (fresh start each time)
   useEffect(() => {
-    console.log('Schedule ride page mounted/accessed')
     setCurrentStep(1)
     setSelectedPatient(null)
     setSelectedAppointment(null)
@@ -107,7 +106,6 @@ export default function OrgScheduleRidePage() {
         roundTrip: formData.roundTrip === true
       }
 
-      console.log('Submitting ride data:', rideData)
       const response = await rideService.scheduleRide(orgId, rideData)
       
       // Set email notification status

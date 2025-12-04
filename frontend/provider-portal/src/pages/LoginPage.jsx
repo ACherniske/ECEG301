@@ -30,15 +30,11 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      console.log('Attempting login with:', { email: formData.email })
-      
       // Use the authService instead of direct fetch
       const { user, organization, token } = await authService.loginLocal(
         formData.email, 
         formData.password
       )
-      
-      console.log('Login successful:', { user, organization })
       
       // Store auth data in Zustand store
       login(user, token, organization, 'local')

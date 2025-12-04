@@ -32,22 +32,8 @@ function OrgRoute({ children }) {
   return children
 }
 
-// Debug component to log current location
+// Debug component to log current location (disabled in production)
 function LocationLogger() {
-  const location = useLocation()
-  
-  useEffect(() => {
-    console.log('=== ROUTER DEBUG ===')
-    console.log('Current location:', location.pathname)
-    console.log('Full location:', location)
-    console.log('VITE_BASE_PATH:', import.meta.env.VITE_BASE_PATH)
-    console.log('Is DEV:', import.meta.env.DEV)
-    console.log('Is PROD:', import.meta.env.PROD)
-    console.log('NODE_ENV:', import.meta.env.NODE_ENV)
-    console.log('All env vars:', import.meta.env)
-    console.log('==================')
-  }, [location.pathname])
-  
   return null
 }
 
