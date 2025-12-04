@@ -21,7 +21,6 @@ export default function OrgRideHistoryPage() {
 
   // Auto-refresh when page is accessed
   useEffect(() => {
-    console.log('Ride history page mounted/accessed')
     if (orgId) {
       // Clear any existing error/success messages when switching to this page
       setError('')
@@ -109,7 +108,6 @@ export default function OrgRideHistoryPage() {
 
   // Handle ride update (for editing fields)
   const handleRideUpdate = async (rideId, updatedRide) => {
-    console.log('Update ride:', rideId, updatedRide)
     setSuccess('Ride updated successfully')
     setTimeout(() => setSuccess(''), 3000)
   }

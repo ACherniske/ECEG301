@@ -19,8 +19,6 @@ export const rideService = {
         roundTrip: rideData.roundTrip === true || rideData.roundTrip === 'true'
       }
       
-      console.log('Scheduling ride with appointment ID:', rideWithDefaults.appointmentId)
-      
       const response = await api.post(`/org/${organizationId}/rides`, rideWithDefaults)
       return response.data
     } catch (error) {

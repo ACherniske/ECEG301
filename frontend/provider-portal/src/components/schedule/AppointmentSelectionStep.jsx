@@ -93,26 +93,18 @@ export default function AppointmentSelectionStep({
         setError('')
         setDebugInfo(`Loading appointments for patient ${patient.id} in org ${orgId}...`)
         
-        console.log('Patient:', patient)
-        console.log('OrgId:', orgId)
-        
-        // Test basic API connectivity first
-        console.log('Testing API connectivity...')
-        
         // Load appointments with detailed error handling
         let appointmentsData = []
         try {
           setDebugInfo('Fetching appointments from API...')
           const appointmentsResponse = await api.get(`/org/${orgId}/patients/${patient.id}/appointments`)
           appointmentsData = appointmentsResponse.data
-          console.log('Appointments API response:', appointmentsResponse.data)
           setDebugInfo(`API call successful. Found ${appointmentsData.length} appointments.`)
         } catch (apiError) {
           console.error('Appointments API error:', apiError)
           setDebugInfo(`API Error: ${apiError.response?.status} - ${apiError.response?.data?.error || apiError.message}`)
           
           // If API fails, use mock data for now
-          console.log('Using mock appointments due to API failure')
           appointmentsData = [
             {
               id: 'mock-apt-001',
@@ -139,7 +131,6 @@ export default function AppointmentSelectionStep({
         // Load rides data
         setDebugInfo(prev => prev + ' Loading existing rides...')
         const ridesData = await rideService.getRides(orgId)
-        console.log('Rides data:', ridesData)
         
         // Create a map of appointments that have rides
         const ridesForPatient = ridesData.filter(ride => 
@@ -173,7 +164,6 @@ export default function AppointmentSelectionStep({
   }, [patient?.id, orgId])
 
   const handleAppointmentSelect = (appointment) => {
-    console.log('Selected appointment:', appointment)
     const appointmentForRide = {
       ...appointment,
       appointmentId: appointment.id,

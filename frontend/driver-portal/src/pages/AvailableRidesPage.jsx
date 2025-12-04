@@ -52,7 +52,6 @@ export default function AvailableRidesPage() {
 
   const handleViewRideDetails = (ride) => {
     // TODO: Navigate to ride details page or open modal
-    console.log('View ride details:', ride)
   }
 
   useEffect(() => {

@@ -67,7 +67,6 @@ export default function OrgSettingsPage() {
 
   // Load organization data when page is accessed
   useEffect(() => {
-    console.log('Settings page mounted/accessed')
     if (orgId) {
       setError('')
       setSuccess('')
@@ -91,7 +90,6 @@ export default function OrgSettingsPage() {
 
       // In a real app, you'd fetch additional settings from the API
       // For now, we'll use mock data
-      console.log('Organization settings loaded')
     } catch (err) {
       console.error('Error loading organization data:', err)
       setError('Failed to load organization settings')
@@ -139,8 +137,6 @@ export default function OrgSettingsPage() {
 
     try {
       // In a real app, you'd save to the backend
-      console.log('Saving organization settings:', orgData)
-      console.log('Saving preferences:', preferences)
 
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500))

@@ -34,7 +34,6 @@ export default function OrgDashboardPage() {
 
   // Auto-refresh when page is accessed (including navigation between pages)
   useEffect(() => {
-    console.log('Dashboard page mounted/accessed')
     if (orgId) {
       // Clear any existing error/success messages when switching to this page
       setError('')

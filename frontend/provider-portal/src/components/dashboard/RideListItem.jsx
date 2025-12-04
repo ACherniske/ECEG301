@@ -213,7 +213,6 @@ export const RideListItem = ({ ride, onStatusUpdate, onRideUpdate }) => {
           rowIndex: ride.rowIndex
         }
         
-        console.log('Updating ride with:', updates)
         await onRideUpdate(ride.id, updates)
       }
       setEditingField(null)
