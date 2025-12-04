@@ -1,58 +1,38 @@
-# Provider Portal Frontend
+# Provider Portal
 
-A React-based web application for healthcare providers to schedule rides for patients
+React web application for healthcare providers to schedule patient transportation.
 
 ## Features
 
-- Daily Dashboard
-- Ride Scheduling System
-- EHR Integration
-- Secure Authentication
-- Responsive Design for Desktop
+- Patient search (EHR integration)
+- Appointment management
+- Ride scheduling workflow
+- Dashboard analytics
+- Organization management
 
-## Getting Started
+## Quick Start
 
-### Prerequisites
-
-- Node.js (v18 or higher)
-- npm or yarn package manager
-
-### Installation
-
-1. Clone the repository
-2. Install dependencies:
-    ```bash
-    npm install
-    ```
-3. Start the development server:
-    ```bash
-    npm run dev
-    ```
-
-### Environment Setup
-
-Create a `.env` file in the root directory with the following variables:
-```
-VITE_API_BASE_URL=http://localhost:3001
-VITE_AUTH_DOMAIN=your-auth-domain
+```bash
+npm install
+npm run dev   # Start on :5173
 ```
 
-## Available Scripts
+## Environment
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-- `npm run test` - Run tests
-
-## Project Structure
-
+Create `.env` file:
+```env
+VITE_API_BASE_URL=http://localhost:3000
 ```
-src/
-├── components/     # Reusable UI components
-├── pages/         # Page components
-├── hooks/         # Custom React hooks
-├── services/      # API service functions
-├── utils/         # Helper functions
-└── styles/        # Global styles
-```
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Development server |
+| `npm run build` | Production build |
+| `npm run preview` | Preview build |
+| `npm run deploy` | Deploy to GitHub Pages |
+
+## Tech Stack
+
+React 19, Vite, TailwindCSS, Zustand, React Router, React Query
