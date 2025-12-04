@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { User, Mail, Lock, MapPin, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react'
-import { Button } from '../components/shared/button'
+import { Button } from '../components/shared/Button'
 import { authService } from '../services/authService'
 
 export default function SignupPage() {

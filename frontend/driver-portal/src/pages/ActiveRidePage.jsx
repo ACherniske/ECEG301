@@ -4,7 +4,7 @@ import { MapPin, Navigation, CheckCircle, AlertCircle, ChevronLeft, X, Clock, Ar
 import { useRideStore } from '../store/rideStore'
 import { useDriverStore } from '../store/driverStore'
 import { rideService } from '../services/rideService'
-import { Button } from '../components/shared/button'
+import { Button } from '../components/shared/Button'
 
 export default function ActiveRidePage() {
   const { rideId } = useParams()
