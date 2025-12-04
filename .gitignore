@@ -32,3 +32,5 @@ ServiceAccount.json
 certificate.crt
 private.key
 backend/.env.production
+frontend/driver-portal/.env.production
+frontend/driver-portal/.env.production
