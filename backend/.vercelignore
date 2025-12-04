@@ -1,0 +1,38 @@
+# Local development files
+.env
+.env.local
+.env.development
+.env.example
+.env.vercel
+
+# Service account (credentials should be in env vars)
+ServiceAccount.json
+
+# Node modules (Vercel installs these)
+node_modules/
+
+# Development scripts
+scripts/
+
+# Test files
+test/
+
+# Data files
+data/
+
+# Development dist
+dev-dist/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Local deployment scripts
+*.ps1
+
+# Documentation
+*.md
