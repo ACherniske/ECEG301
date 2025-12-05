@@ -1,0 +1,103 @@
+sequenceDiagram
+    participant PROV as Provider
+    participant PP as Provider Portal
+    participant API as Express API
+    participant AUTH as JWT Auth
+    participant GS as Google Sheets
+    participant MAPS as Google Maps
+    participant EMAIL as Email Service
+    participant PAT as Patient
+
+    Note over PROV,PAT: === AUTHENTICATION ===
+    PROV->>PP: Navigate to login page
+    PROV->>PP: Enter email & password
+    PP->>API: POST /api/auth/login
+    API->>GS: Query Users sheet
+    GS-->>API: User record
+    API->>API: Verify password (bcrypt)
+    API->>AUTH: Generate JWT token
+    AUTH-->>API: Signed token
+    API-->>PP: 200 OK + token + user data
+    PP->>PP: Store token in localStorage
+    PP->>PROV: Redirect to Dashboard
+
+    Note over PROV,PAT: === LOAD DASHBOARD ===
+    PP->>API: GET /api/org/:orgId/rides (with JWT)
+    API->>AUTH: Validate token
+    AUTH-->>API: User context (orgId, role)
+    API->>GS: Query Rides sheet (filter by orgId)
+    GS-->>API: Rides data
+    API-->>PP: 200 OK + rides array
+    PP->>PROV: Display dashboard with today's rides
+
+    Note over PROV,PAT: === SEARCH PATIENT ===
+    PROV->>PP: Click "Schedule Ride"
+    PROV->>PP: Enter patient search term
+    PP->>API: GET /api/org/:orgId/patients?search=term
+    API->>AUTH: Validate token
+    API->>GS: Query Patients sheet (filter by orgId + search)
+    GS-->>API: Matching patients
+    API-->>PP: 200 OK + patients array
+    PP->>PROV: Display patient search results
+
+    Note over PROV,PAT: === SELECT PATIENT & APPOINTMENTS ===
+    PROV->>PP: Select patient from list
+    PP->>API: GET /api/org/:orgId/patients/:patientId/appointments
+    API->>AUTH: Validate token
+    API->>GS: Query Appointments sheet (filter by patientId)
+    GS-->>API: Patient's appointments
+    API-->>PP: 200 OK + appointments array
+    PP->>PROV: Display upcoming appointments
+
+    Note over PROV,PAT: === CREATE RIDE ===
+    PROV->>PP: Select appointment
+    PROV->>PP: Enter pickup address
+    PROV->>PP: Add notes, set round trip
+    PROV->>PP: Click "Submit"
+    PP->>API: POST /api/org/:orgId/rides
+    API->>AUTH: Validate token
+    API->>API: Validate required fields
+    API->>GS: Check for duplicate rides
+    
+    alt Duplicate found
+        API-->>PP: 409 Conflict
+        PP->>PROV: Show error "Ride already exists"
+    else No duplicate
+        API->>MAPS: Calculate distance (pickup → provider)
+        MAPS-->>API: Distance & duration data
+        API->>API: Calculate estimated pickup time
+        API->>API: Generate confirmation token (UUID)
+        API->>GS: Insert new ride row (status: pending)
+        GS-->>API: Success + ride ID
+        API->>EMAIL: Send confirmation email
+        EMAIL->>PAT: Email with confirmation link
+        API-->>PP: 201 Created + ride details
+        PP->>PROV: Show success message
+    end
+
+    Note over PROV,PAT: === VIEW RIDE STATUS ===
+    PROV->>PP: Navigate to Rides page
+    PP->>API: GET /api/org/:orgId/rides
+    API->>AUTH: Validate token
+    API->>GS: Query Rides sheet
+    GS-->>API: All org rides
+    API-->>PP: 200 OK + rides with statuses
+    PP->>PROV: Display rides (pending, confirmed, etc.)
+
+    Note over PROV,PAT: === CANCEL RIDE ===
+    PROV->>PP: Select ride to cancel
+    PROV->>PP: Confirm cancellation
+    PP->>API: PATCH /api/org/:orgId/rides/:rideId
+    API->>AUTH: Validate token
+    API->>GS: Get ride details
+    GS-->>API: Ride data
+    API->>API: Check if cancellable (not completed)
+    API->>GS: Update status to "cancelled"
+    GS-->>API: Success
+    API-->>PP: 200 OK
+    PP->>PROV: Show "Ride cancelled"
+
+    Note over PROV,PAT: === LOGOUT ===
+    PROV->>PP: Click Logout
+    PP->>PP: Clear localStorage token
+    PP->>PROV: Redirect to login page
