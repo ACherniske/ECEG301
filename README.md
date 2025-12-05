@@ -51,12 +51,12 @@ graph TB
 
     LP --> PP
     LP --> DP
-    PP --> API
-    DP --> API
-    API --> AUTH
+    PP <--> API
+    DP <--> API
+    API <--> AUTH
     API --> EMAIL
-    API --> MAPS
-    API --> GS
+    API <--> MAPS
+    API <--> GS
 ```
 
 ## Project Structure
@@ -97,15 +97,22 @@ graph LR
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pending: Provider creates ride
-    Pending --> Confirmed: Patient confirms via email
-    Confirmed --> Claimed: Driver accepts ride
-    Claimed --> EnRoute: Driver starts trip
-    EnRoute --> InTransit: Patient picked up
-    InTransit --> Arrived: At appointment
-    Arrived --> Completed: Trip finished
-    Confirmed --> Cancelled: Cancelled
-    Claimed --> Cancelled: Driver cancels
+    [*] --> pending: Provider creates ride
+    pending --> confirmed: Patient confirms via email
+    confirmed --> claimed: Driver accepts
+    claimed --> en_route: Driver starts navigation
+    en_route --> in_transit: Patient picked up
+    in_transit --> arrived: At appointment
+    arrived --> completed: Trip finished
+    
+    pending --> cancelled: Provider cancels
+    confirmed --> cancelled: Patient/Provider cancels
+    claimed --> cancelled: Driver cancels
+    
+    note right of pending: Awaiting patient confirmation
+    note right of confirmed: Available for drivers
+    note right of claimed: Driver assigned
+    note right of completed: Trip logged in history
 ```
 
 > **See [FLOWS.md](./FLOWS.md) for detailed user and technical flow diagrams.**

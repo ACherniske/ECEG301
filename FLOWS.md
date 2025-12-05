@@ -60,15 +60,16 @@ graph TB
         GS[(Google Sheets)]
     end
     
-    PROV --> PP
+    PROV <--> PP
     PAT --> EMAIL
-    DRV --> DP
+    DRV <--> DP
     
-    PP --> API
-    DP --> API
-    API --> GS
+    PP <--> API
+    DP <--> API
+    API <--> AUTH
+    API <--> GS
     API --> EMAIL
-    API --> MAPS
+    API <--> MAPS
 ```
 
 ### Why This Architecture?
@@ -343,15 +344,15 @@ flowchart LR
         GS[(Google Sheets)]
     end
     
-    PS --> API
-    AS --> API
-    RC --> API
+    PS <--> API
+    AS <--> API
+    RC <--> API
     API --> PE
-    PC --> API
-    VR --> API
-    AR --> API
-    TR --> API
-    CR --> API
+    PC <--> API
+    VR <--> API
+    AR <--> API
+    TR <--> API
+    CR <--> API
     API <--> GS
 ```
 
